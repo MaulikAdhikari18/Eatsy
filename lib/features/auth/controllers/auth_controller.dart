@@ -19,11 +19,20 @@ class AuthController extends StateNotifier<AsyncValue<void>> {
   }
 
   Future<void> signUpWithEmail(String email, String password, String fullName) async {
-    await _supabase.auth.signUp(
+    final response = await _supabase.auth.signUp(
       email: email,
       password: password,
       data: {'full_name': fullName},
     );
+
+    // Auto-create profile row
+    if (response.user != null) {
+      await _supabase.from('profiles').insert({
+        'id': response.user!.id,
+        'full_name': fullName,
+        'created_at': DateTime.now().toIso8601String(),
+      });
+    }
   }
 
   Future<void> signInWithGoogle() async {
