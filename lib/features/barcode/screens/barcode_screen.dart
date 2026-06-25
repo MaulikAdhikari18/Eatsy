@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../../core/services/fatsecret_service.dart';
 
 class BarcodeScreen extends StatefulWidget {
   const BarcodeScreen({super.key});
@@ -31,16 +32,25 @@ class _BarcodeScreenState extends State<BarcodeScreen> {
     setState(() => _isScanned = true);
     final code = barcode!.rawValue!;
 
-    // Placeholder — will connect to FatSecret Barcode API later
-    // For now show a demo result
-    if (mounted) {
-      _showFoodResult({
-        'food_name': 'Scanned Product ($code)',
-        'calories': 250.0,
-        'protein': 10.0,
-        'carbs': 35.0,
-        'fat': 8.0,
-      });
+    try {
+      final food = await fatSecretService.getFoodByBarcode(code);
+      if (food != null && mounted) {
+        _showFoodResult(food);
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Product not found in database')),
+          );
+          setState(() => _isScanned = false);
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: $e')),
+        );
+        setState(() => _isScanned = false);
+      }
     }
   }
 

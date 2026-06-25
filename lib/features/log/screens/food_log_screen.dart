@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:intl/intl.dart';
+import '../../../core/services/fatsecret_service.dart';
 
 class FoodLogScreen extends ConsumerStatefulWidget {
   const FoodLogScreen({super.key});
@@ -70,51 +71,18 @@ class _FoodLogScreenState extends ConsumerState<FoodLogScreen> {
     }
     setState(() => _isSearching = true);
     try {
-      // Placeholder — will connect to FatSecret API later
-      await Future.delayed(const Duration(milliseconds: 500));
-      setState(() {
-        _searchResults = [
-          {
-            'food_name': 'Apple',
-            'calories': 95.0,
-            'protein': 0.5,
-            'carbs': 25.0,
-            'fat': 0.3,
-          },
-          {
-            'food_name': 'Banana',
-            'calories': 105.0,
-            'protein': 1.3,
-            'carbs': 27.0,
-            'fat': 0.4,
-          },
-          {
-            'food_name': 'Chicken Breast (100g)',
-            'calories': 165.0,
-            'protein': 31.0,
-            'carbs': 0.0,
-            'fat': 3.6,
-          },
-          {
-            'food_name': 'Brown Rice (1 cup)',
-            'calories': 216.0,
-            'protein': 5.0,
-            'carbs': 45.0,
-            'fat': 1.8,
-          },
-          {
-            'food_name': 'Whole Milk (1 cup)',
-            'calories': 149.0,
-            'protein': 8.0,
-            'carbs': 12.0,
-            'fat': 8.0,
-          },
-        ].where((f) => f['food_name']
-            .toString()
-            .toLowerCase()
-            .contains(query.toLowerCase()))
-            .toList();
-      });
+      print('🔍 Searching for: $query');
+      final results = await fatSecretService.searchFood(query);
+      print('✅ Results: ${results.length}');
+      setState(() => _searchResults = results);
+    } catch (e, stack) {
+      print('❌ Search error: $e');
+      print('Stack: $stack');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Search error: $e')),
+        );
+      }
     } finally {
       if (mounted) setState(() => _isSearching = false);
     }
