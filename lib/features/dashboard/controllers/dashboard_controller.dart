@@ -10,6 +10,7 @@ class DashboardSummary {
   final double proteinGoal;
   final double carbsGoal;
   final double fatGoal;
+  final List<Map<String, dynamic>> todaysMeals;
 
   const DashboardSummary({
     required this.consumed,
@@ -20,11 +21,17 @@ class DashboardSummary {
     required this.proteinGoal,
     required this.carbsGoal,
     required this.fatGoal,
+    required this.todaysMeals,
   });
 }
 
-final dashboardSummaryProvider =
-FutureProvider<DashboardSummary>((ref) async {
+// Refresh trigger provider — invalidate this to force dashboard refresh
+final dashboardRefreshProvider = StateProvider<int>((ref) => 0);
+
+final dashboardSummaryProvider = FutureProvider<DashboardSummary>((ref) async {
+  // Watch refresh trigger so it re-runs when triggered
+  ref.watch(dashboardRefreshProvider);
+
   final supabase = Supabase.instance.client;
   final userId = supabase.auth.currentUser?.id;
 
@@ -38,10 +45,10 @@ FutureProvider<DashboardSummary>((ref) async {
       proteinGoal: 150,
       carbsGoal: 250,
       fatGoal: 65,
+      todaysMeals: [],
     );
   }
 
-  // Get today's date range
   final now = DateTime.now();
   final startOfDay = DateTime(now.year, now.month, now.day);
   final endOfDay = startOfDay.add(const Duration(days: 1));
@@ -52,7 +59,8 @@ FutureProvider<DashboardSummary>((ref) async {
       .select()
       .eq('user_id', userId)
       .gte('logged_at', startOfDay.toIso8601String())
-      .lt('logged_at', endOfDay.toIso8601String());
+      .lt('logged_at', endOfDay.toIso8601String())
+      .order('logged_at', ascending: false);
 
   double totalCalories = 0;
   double totalProtein = 0;
@@ -82,5 +90,6 @@ FutureProvider<DashboardSummary>((ref) async {
     proteinGoal: (goalsData?['protein_goal'] ?? 150).toDouble(),
     carbsGoal: (goalsData?['carbs_goal'] ?? 250).toDouble(),
     fatGoal: (goalsData?['fat_goal'] ?? 65).toDouble(),
+    todaysMeals: List<Map<String, dynamic>>.from(logs),
   );
 });
