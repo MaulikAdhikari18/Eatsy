@@ -18,22 +18,21 @@ class DashboardScreen extends ConsumerStatefulWidget {
 class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   int _currentIndex = 0;
 
-  final List<Widget> _screens = [
-    const _HomeTab(),
-    const FoodLogScreen(),
-    const ScanScreen(),
-    const GoalsScreen(),
-  ];
-
   @override
   Widget build(BuildContext context) {
+    final screens = [
+      const _HomeTab(),
+      const FoodLogScreen(),
+      const ScanScreen(),
+      const GoalsScreen(),
+    ];
+
     return Scaffold(
-      body: _screens[_currentIndex],
+      body: screens[_currentIndex],
       bottomNavigationBar: NavigationBar(
         selectedIndex: _currentIndex,
         onDestinationSelected: (index) {
           if (index == 2) {
-            // Scan button — open scan screen as modal
             Navigator.push(
               context,
               MaterialPageRoute(builder: (_) => const ScanScreen()),
@@ -72,6 +71,13 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
 class _HomeTab extends ConsumerWidget {
   const _HomeTab();
 
+  String _greeting() {
+    final hour = DateTime.now().hour;
+    if (hour < 12) return 'Morning';
+    if (hour < 17) return 'Afternoon';
+    return 'Evening';
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final today = DateFormat('EEEE, MMM d').format(DateTime.now());
@@ -80,146 +86,190 @@ class _HomeTab extends ConsumerWidget {
     return Scaffold(
       backgroundColor: const Color(0xFFF9F9F9),
       body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(20),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Header
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Good ${_greeting()}! 👋',
-                        style: const TextStyle(
-                          fontSize: 22,
-                          fontWeight: FontWeight.bold,
+        child: RefreshIndicator(
+          color: const Color(0xFF4CAF50),
+          onRefresh: () async {
+            ref.invalidate(dashboardSummaryProvider);
+          },
+          child: SingleChildScrollView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Header
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Good ${_greeting()}! 👋',
+                          style: const TextStyle(
+                            fontSize: 22,
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
-                      ),
-                      Text(
-                        today,
-                        style: const TextStyle(
-                          color: Colors.grey,
-                          fontSize: 14,
+                        Text(
+                          today,
+                          style: const TextStyle(
+                            color: Colors.grey,
+                            fontSize: 14,
+                          ),
                         ),
+                      ],
+                    ),
+                    CircleAvatar(
+                      backgroundColor: const Color(0xFF4CAF50),
+                      radius: 22,
+                      child: const Icon(Icons.person, color: Colors.white),
+                    ),
+                  ],
+                ),
+
+                const SizedBox(height: 24),
+
+                // Calorie Ring Card
+                summaryAsync.when(
+                  data: (summary) => _CalorieCard(summary: summary),
+                  loading: () => const _CalorieCardSkeleton(),
+                  error: (e, __) {
+                    print('Dashboard error: $e');
+                    return _CalorieCard(
+                      summary: DashboardSummary(
+                        consumed: 0,
+                        goal: 2000,
+                        protein: 0,
+                        carbs: 0,
+                        fat: 0,
+                        proteinGoal: 150,
+                        carbsGoal: 250,
+                        fatGoal: 65,
+                        todaysMeals: const [],
                       ),
-                    ],
-                  ),
-                  CircleAvatar(
-                    backgroundColor: const Color(0xFF4CAF50),
-                    radius: 22,
-                    child: const Icon(Icons.person, color: Colors.white),
-                  ),
-                ],
-              ),
+                    );
+                  },
+                ),
 
-              const SizedBox(height: 24),
+                const SizedBox(height: 20),
 
-              // Calorie Ring Card
-              summaryAsync.when(
-                data: (summary) => _CalorieCard(summary: summary),
-                loading: () => const _CalorieCardSkeleton(),
-                error: (_, __) => const _CalorieCard(
-                  summary: DashboardSummary(
-                    consumed: 0,
-                    goal: 2000,
-                    protein: 0,
-                    carbs: 0,
-                    fat: 0,
-                    proteinGoal: 150,
-                    carbsGoal: 250,
-                    fatGoal: 65,
+                // Macros Row
+                summaryAsync.when(
+                  data: (summary) => _MacrosRow(summary: summary),
+                  loading: () => const _MacrosSkeleton(),
+                  error: (_, __) => const SizedBox(),
+                ),
+
+                const SizedBox(height: 24),
+
+                // Quick Add
+                const Text(
+                  'Quick Add',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
                   ),
                 ),
-              ),
-
-              const SizedBox(height: 20),
-
-              // Macros Row
-              summaryAsync.when(
-                data: (summary) => _MacrosRow(summary: summary),
-                loading: () => const _MacrosSkeleton(),
-                error: (_, __) => const SizedBox(),
-              ),
-
-              const SizedBox(height: 24),
-
-              // Quick Add section
-              const Text(
-                'Quick Add',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    _QuickAddButton(
+                      icon: Icons.camera_alt,
+                      label: 'Scan Food',
+                      color: const Color(0xFF4CAF50),
+                      onTap: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (_) => const ScanScreen()),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    _QuickAddButton(
+                      icon: Icons.search,
+                      label: 'Search Food',
+                      color: const Color(0xFF2196F3),
+                      onTap: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                            builder: (_) => const FoodLogScreen()),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    _QuickAddButton(
+                      icon: Icons.qr_code_scanner,
+                      label: 'Barcode',
+                      color: const Color(0xFFFF7043),
+                      onTap: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                            builder: (_) => const BarcodeScreen()),
+                      ),
+                    ),
+                  ],
                 ),
-              ),
-              const SizedBox(height: 12),
-              Row(
-                children: [
-                  _QuickAddButton(
-                    icon: Icons.camera_alt,
-                    label: 'Scan Food',
-                    color: const Color(0xFF4CAF50),
-                    onTap: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (_) => const ScanScreen()),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  _QuickAddButton(
-                    icon: Icons.search,
-                    label: 'Search Food',
-                    color: const Color(0xFF2196F3),
-                    onTap: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (_) => const FoodLogScreen()),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  _QuickAddButton(
-                    icon: Icons.qr_code_scanner,
-                    label: 'Barcode',
-                    color: const Color(0xFFFF7043),
-                    onTap: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (_) => const BarcodeScreen()),
-                    ),
-                  ),
-                ],
-              ),
 
-              const SizedBox(height: 24),
+                const SizedBox(height: 24),
 
-              // Today's meals
-              const Text(
-                "Today's Meals",
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
+                // Today's Meals
+                const Text(
+                  "Today's Meals",
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
-              ),
-              const SizedBox(height: 12),
-              summaryAsync.when(
-                data: (summary) => summary.consumed == 0
-                    ? _EmptyMeals()
-                    : _MealsList(),
-                loading: () => const _MealsSkeleton(),
-                error: (_, __) => _EmptyMeals(),
-              ),
-            ],
+                const SizedBox(height: 12),
+
+                summaryAsync.when(
+                  data: (summary) {
+                    final meals = summary.todaysMeals;
+                    if (meals.isEmpty) return _EmptyMeals();
+                    return ListView.builder(
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      itemCount: meals.length,
+                      itemBuilder: (context, index) {
+                        final log = meals[index];
+                        return Container(
+                          margin: const EdgeInsets.only(bottom: 10),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: ListTile(
+                            leading: const CircleAvatar(
+                              backgroundColor: Color(0xFFE8F5E9),
+                              child: Icon(Icons.restaurant,
+                                  color: Color(0xFF4CAF50), size: 20),
+                            ),
+                            title: Text(
+                              log['food_name']?.toString() ?? '',
+                              style: const TextStyle(
+                                  fontWeight: FontWeight.w600),
+                            ),
+                            subtitle: Text(
+                              '${((log['calories'] ?? 0) as num).toInt()} kcal · ${log['meal_type'] ?? ''}',
+                              style: const TextStyle(fontSize: 12),
+                            ),
+                            trailing: Text(
+                              '${((log['protein'] ?? 0) as num).toInt()}p · ${((log['carbs'] ?? 0) as num).toInt()}c · ${((log['fat'] ?? 0) as num).toInt()}f',
+                              style: const TextStyle(
+                                  fontSize: 11, color: Colors.grey),
+                            ),
+                          ),
+                        );
+                      },
+                    );
+                  },
+                  loading: () => const _MealsSkeleton(),
+                  error: (_, __) => _EmptyMeals(),
+                ),
+              ],
+            ),
           ),
         ),
       ),
     );
-  }
-
-  String _greeting() {
-    final hour = DateTime.now().hour;
-    if (hour < 12) return 'Morning';
-    if (hour < 17) return 'Afternoon';
-    return 'Evening';
   }
 }
 
@@ -233,7 +283,8 @@ class _CalorieCard extends StatelessWidget {
     final progress = summary.goal > 0
         ? (summary.consumed / summary.goal).clamp(0.0, 1.0)
         : 0.0;
-    final remaining = (summary.goal - summary.consumed).clamp(0, summary.goal);
+    final remaining =
+    (summary.goal - summary.consumed).clamp(0, summary.goal);
 
     return Container(
       padding: const EdgeInsets.all(20),
@@ -250,7 +301,6 @@ class _CalorieCard extends StatelessWidget {
       ),
       child: Row(
         children: [
-          // Ring chart
           SizedBox(
             width: 120,
             height: 120,
@@ -264,13 +314,13 @@ class _CalorieCard extends StatelessWidget {
                     centerSpaceRadius: 45,
                     sections: [
                       PieChartSectionData(
-                        value: progress,
+                        value: progress > 0 ? progress : 0.001,
                         color: const Color(0xFF4CAF50),
                         radius: 12,
                         showTitle: false,
                       ),
                       PieChartSectionData(
-                        value: 1 - progress,
+                        value: progress < 1 ? 1 - progress : 0.001,
                         color: const Color(0xFFF0F0F0),
                         radius: 12,
                         showTitle: false,
@@ -290,17 +340,15 @@ class _CalorieCard extends StatelessWidget {
                     ),
                     const Text(
                       'kcal',
-                      style: TextStyle(fontSize: 11, color: Colors.grey),
+                      style:
+                      TextStyle(fontSize: 11, color: Colors.grey),
                     ),
                   ],
                 ),
               ],
             ),
           ),
-
           const SizedBox(width: 20),
-
-          // Stats
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -350,7 +398,9 @@ class _StatRow extends StatelessWidget {
             style: const TextStyle(color: Colors.grey, fontSize: 13)),
         Text(value,
             style: TextStyle(
-                color: color, fontWeight: FontWeight.w600, fontSize: 13)),
+                color: color,
+                fontWeight: FontWeight.w600,
+                fontSize: 13)),
       ],
     );
   }
@@ -410,7 +460,8 @@ class _MacroCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final progress = goal > 0 ? (consumed / goal).clamp(0.0, 1.0) : 0.0;
+    final progress =
+    goal > 0 ? (consumed / goal).clamp(0.0, 1.0) : 0.0;
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
@@ -456,7 +507,8 @@ class _MacroCard extends StatelessWidget {
           const SizedBox(height: 4),
           Text(
             'of ${goal.toInt()}g',
-            style: const TextStyle(color: Colors.grey, fontSize: 11),
+            style:
+            const TextStyle(color: Colors.grey, fontSize: 11),
           ),
         ],
       ),
@@ -464,7 +516,6 @@ class _MacroCard extends StatelessWidget {
   }
 }
 
-// Quick Add Button
 class _QuickAddButton extends StatelessWidget {
   final IconData icon;
   final String label;
@@ -508,7 +559,6 @@ class _QuickAddButton extends StatelessWidget {
   }
 }
 
-// Empty meals
 class _EmptyMeals extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
@@ -542,14 +592,6 @@ class _EmptyMeals extends StatelessWidget {
   }
 }
 
-class _MealsList extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    return const Center(child: Text('Meals will appear here'));
-  }
-}
-
-// Skeletons
 class _CalorieCardSkeleton extends StatelessWidget {
   const _CalorieCardSkeleton();
   @override

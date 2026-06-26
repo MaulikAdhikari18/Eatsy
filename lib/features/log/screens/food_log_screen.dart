@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:intl/intl.dart';
 import '../../../core/services/fatsecret_service.dart';
+import '../../../features/dashboard/controllers/dashboard_controller.dart';
 
 class FoodLogScreen extends ConsumerStatefulWidget {
   const FoodLogScreen({super.key});
@@ -104,6 +105,9 @@ class _FoodLogScreenState extends ConsumerState<FoodLogScreen> {
         'meal_type': _selectedMealType,
         'logged_at': DateTime.now().toIso8601String(),
       });
+
+      // Trigger dashboard refresh
+      ref.invalidate(dashboardSummaryProvider);
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
