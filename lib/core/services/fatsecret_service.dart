@@ -11,7 +11,6 @@ class FatSecretService {
   String? _accessToken;
   DateTime? _tokenExpiry;
 
-  // Get OAuth2 access token
   Future<String> _getAccessToken() async {
     if (_accessToken != null &&
         _tokenExpiry != null &&
@@ -19,39 +18,36 @@ class FatSecretService {
       return _accessToken!;
     }
 
-    try {
-      final credentials =
-      base64Encode(utf8.encode('$_clientId:$_clientSecret'));
+    print('🔑 Getting FatSecret token...');
 
-      print('🔑 Getting access token...');
+    final response = await _dio.post(
+      _authUrl,
+      options: Options(
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+        },
+      ),
+      data: {
+        'grant_type': 'client_credentials',
+        'client_id': _clientId,
+        'client_secret': _clientSecret,
+        'scope': 'basic',
+      },
+    );
 
-      final response = await _dio.post(
-        _authUrl,
-        options: Options(
-          headers: {
-            'Authorization': 'Basic $credentials',
-            'Content-Type': 'application/x-www-form-urlencoded',
-          },
-        ),
-        data: 'grant_type=client_credentials',
-      );
+    print('✅ Token received!');
 
-      print('✅ Token response: ${response.data}');
+    _accessToken = response.data['access_token'];
+    _tokenExpiry = DateTime.now()
+        .add(Duration(seconds: response.data['expires_in'] - 60));
 
-      _accessToken = response.data['access_token'];
-      _tokenExpiry = DateTime.now()
-          .add(Duration(seconds: response.data['expires_in'] - 60));
-
-      return _accessToken!;
-    } catch (e) {
-      print('❌ Token error: $e');
-      rethrow;
-    }
+    return _accessToken!;
   }
 
-  // Search food by name
   Future<List<Map<String, dynamic>>> searchFood(String query) async {
     final token = await _getAccessToken();
+
+    print('🔍 Searching: $query');
 
     final response = await _dio.get(
       _baseUrl,
@@ -63,8 +59,11 @@ class FatSecretService {
       },
       options: Options(
         headers: {'Authorization': 'Bearer $token'},
+        validateStatus: (status) => true,
       ),
     );
+
+    print('📦 Search response: ${response.data}');
 
     final foods = response.data['foods']?['food'];
     if (foods == null) return [];
@@ -72,7 +71,6 @@ class FatSecretService {
     final foodList = foods is List ? foods : [foods];
 
     return foodList.map<Map<String, dynamic>>((food) {
-      // Parse description like "Per 100g - Calories: 52kcal | Fat: 0.17g | Carbs: 13.81g | Protein: 0.26g"
       final description = food['food_description'] ?? '';
       return {
         'food_id': food['food_id'],
@@ -81,12 +79,10 @@ class FatSecretService {
         'fat': _parseNutrient(description, 'Fat', 'g'),
         'carbs': _parseNutrient(description, 'Carbs', 'g'),
         'protein': _parseNutrient(description, 'Protein', 'g'),
-        'description': description,
       };
     }).toList();
   }
 
-  // Get food by barcode
   Future<Map<String, dynamic>?> getFoodByBarcode(String barcode) async {
     final token = await _getAccessToken();
 
@@ -100,19 +96,22 @@ class FatSecretService {
         },
         options: Options(
           headers: {'Authorization': 'Bearer $token'},
+          validateStatus: (status) => true,
         ),
       );
+
+      print('📦 Barcode response: ${response.data}');
 
       final foodId = response.data['food_id']?['value'];
       if (foodId == null) return null;
 
       return await getFoodById(foodId);
     } catch (e) {
+      print('❌ Barcode error: $e');
       return null;
     }
   }
 
-  // Get food details by ID
   Future<Map<String, dynamic>?> getFoodById(String foodId) async {
     final token = await _getAccessToken();
 
@@ -125,8 +124,11 @@ class FatSecretService {
       },
       options: Options(
         headers: {'Authorization': 'Bearer $token'},
+        validateStatus: (status) => true,
       ),
     );
+
+    print('📦 Food detail response: ${response.data}');
 
     final food = response.data['food'];
     if (food == null) return null;
@@ -136,21 +138,17 @@ class FatSecretService {
 
     return {
       'food_name': food['food_name'],
-      'calories': double.tryParse(
-          firstServing?['calories']?.toString() ?? '0') ??
-          0,
-      'protein': double.tryParse(
-          firstServing?['protein']?.toString() ?? '0') ??
-          0,
+      'calories':
+      double.tryParse(firstServing?['calories']?.toString() ?? '0') ?? 0,
+      'protein':
+      double.tryParse(firstServing?['protein']?.toString() ?? '0') ?? 0,
       'carbs': double.tryParse(
           firstServing?['carbohydrate']?.toString() ?? '0') ??
           0,
-      'fat':
-      double.tryParse(firstServing?['fat']?.toString() ?? '0') ?? 0,
+      'fat': double.tryParse(firstServing?['fat']?.toString() ?? '0') ?? 0,
     };
   }
 
-  // Helper to parse nutrient values from description string
   double _parseNutrient(String description, String nutrient, String unit) {
     try {
       final pattern = '$nutrient: ([0-9.]+)$unit';
@@ -162,5 +160,4 @@ class FatSecretService {
   }
 }
 
-// Singleton instance
 final fatSecretService = FatSecretService();
