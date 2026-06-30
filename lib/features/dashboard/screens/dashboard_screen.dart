@@ -7,6 +7,9 @@ import '../../scan/screens/scan_screen.dart';
 import '../../barcode/screens/barcode_screen.dart';
 import '../../goals/screens/goals_screen.dart';
 import '../controllers/dashboard_controller.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:go_router/go_router.dart';
+import '../../auth/controllers/auth_controller.dart';
 
 class DashboardScreen extends ConsumerStatefulWidget {
   const DashboardScreen({super.key});
@@ -78,6 +81,83 @@ class _HomeTab extends ConsumerWidget {
     return 'Evening';
   }
 
+  void _showProfileMenu(BuildContext context, WidgetRef ref) {
+    final email = Supabase.instance.client.auth.currentUser?.email ?? '';
+
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) => Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Center(
+              child: Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: Colors.grey[300],
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+            ),
+            const SizedBox(height: 20),
+            Row(
+              children: [
+                const CircleAvatar(
+                  backgroundColor: Color(0xFF4CAF50),
+                  radius: 24,
+                  child: Icon(Icons.person, color: Colors.white),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    email,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w600,
+                      fontSize: 15,
+                    ),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 24),
+            ListTile(
+              leading: const Icon(Icons.flag_outlined, color: Colors.grey),
+              title: const Text('Goals & Targets'),
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const GoalsScreen()),
+                );
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.logout, color: Colors.red),
+              title: const Text(
+                'Sign Out',
+                style: TextStyle(color: Colors.red),
+              ),
+              onTap: () async {
+                Navigator.pop(context);
+                await ref.read(authControllerProvider.notifier).signOut();
+                if (context.mounted) {
+                  context.go('/login');
+                }
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final today = DateFormat('EEEE, MMM d').format(DateTime.now());
@@ -120,10 +200,13 @@ class _HomeTab extends ConsumerWidget {
                         ),
                       ],
                     ),
-                    CircleAvatar(
-                      backgroundColor: const Color(0xFF4CAF50),
-                      radius: 22,
-                      child: const Icon(Icons.person, color: Colors.white),
+                    GestureDetector(
+                      onTap: () => _showProfileMenu(context, ref),
+                      child: const CircleAvatar(
+                        backgroundColor: Color(0xFF4CAF50),
+                        radius: 22,
+                        child: Icon(Icons.person, color: Colors.white),
+                      ),
                     ),
                   ],
                 ),
