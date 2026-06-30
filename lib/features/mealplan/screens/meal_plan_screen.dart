@@ -19,7 +19,7 @@ class MealPlanScreen extends ConsumerStatefulWidget {
 class _MealPlanScreenState extends ConsumerState<MealPlanScreen> {
   bool _isGenerating = false;
   Map<String, dynamic>? _mealPlan;
-  String _selectedDay = 'Today';
+  String _selectedDay = 'Day 1';
 
   final List<String> _days = [
     'Today',
@@ -294,7 +294,7 @@ Replace all "meal" placeholders with real personalized meal names. Keep calories
         ),
         data: {
           'model': 'llama-3.3-70b-versatile',
-          'max_tokens': 2000,
+          'max_tokens': 4000,
           'messages': [
             {
               'role': 'system',
@@ -324,16 +324,28 @@ Replace all "meal" placeholders with real personalized meal names. Keep calories
 
         final parsed =
         jsonDecode(cleanJson) as Map<String, dynamic>;
-        setState(() => _mealPlan = parsed);
+        final firstDay = (parsed['days'] as List).first;
+        setState(() {
+          _mealPlan = parsed;
+          _selectedDay = firstDay['day'].toString();
+        });
       } else {
         print('❌ Groq error: ${response.data}');
         final userData2 = await _getUserData();
-        setState(() => _mealPlan = _getFallbackPlan(userData2));
+        final fallback = _getFallbackPlan(userData2);
+        setState(() {
+          _mealPlan = fallback;
+          _selectedDay = (fallback['days'] as List).first['day'].toString();
+        });
       }
     } catch (e) {
       print('❌ Error: $e');
       final userData = await _getUserData();
-      setState(() => _mealPlan = _getFallbackPlan(userData));
+      final fallback = _getFallbackPlan(userData);
+      setState(() {
+        _mealPlan = fallback;
+        _selectedDay = (fallback['days'] as List).first['day'].toString();
+      });
     } finally {
       if (mounted) setState(() => _isGenerating = false);
     }
@@ -505,13 +517,35 @@ Replace all "meal" placeholders with real personalized meal names. Keep calories
 
             if (_mealPlan != null) ...[
               // Day selector
-              const Text(
-                'Your 7-Day Plan',
-                
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                ),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text(
+                    'Your 7-Day Plan',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  ElevatedButton.icon(
+                    onPressed: _exportToPdf,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF4CAF50),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 8,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                    ),
+                    icon: const Icon(Icons.picture_as_pdf, size: 16),
+                    label: const Text(
+                      'Save PDF',
+                      style: TextStyle(fontSize: 13),
+                    ),
+                  ),
+                ],
               ),
               const SizedBox(height: 12),
               SingleChildScrollView(
