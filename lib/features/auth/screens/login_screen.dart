@@ -36,6 +36,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         _emailController.text.trim(),
         _passwordController.text.trim(),
       );
+      if (mounted) context.go('/');
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

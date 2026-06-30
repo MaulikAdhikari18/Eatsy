@@ -8,8 +8,12 @@ import '../../features/auth/screens/signup_screen.dart';
 import '../../features/auth/screens/onboarding_screen.dart';
 import '../../features/dashboard/screens/dashboard_screen.dart';
 
+final authStateProvider = StreamProvider<AuthState>((ref) {
+  return Supabase.instance.client.auth.onAuthStateChange;
+});
+
 final appRouterProvider = Provider<GoRouter>((ref) {
-  return GoRouter(
+  final router = GoRouter(
     initialLocation: '/',
     routes: [
       GoRoute(
@@ -34,20 +38,25 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       ),
     ],
   );
+  return router;
 });
 
-class _StartupScreen extends StatefulWidget {
+class _StartupScreen extends ConsumerStatefulWidget {
   const _StartupScreen();
 
   @override
-  State<_StartupScreen> createState() => _StartupScreenState();
+  ConsumerState<_StartupScreen> createState() => _StartupScreenState();
 }
 
-class _StartupScreenState extends State<_StartupScreen> {
+class _StartupScreenState extends ConsumerState<_StartupScreen> {
   @override
   void initState() {
     super.initState();
     _redirect();
+    // Listen to auth state changes
+    Supabase.instance.client.auth.onAuthStateChange.listen((data) {
+      if (mounted) _redirect();
+    });
   }
 
   Future<void> _redirect() async {
@@ -60,9 +69,10 @@ class _StartupScreenState extends State<_StartupScreen> {
       return;
     }
 
+    final userId = session.user.id;
     final prefs = await SharedPreferences.getInstance();
-    //await prefs.setBool('onboarding_done', false);
-    final onboardingDone = prefs.getBool('onboarding_done') ?? false;
+    // Use user-specific key so each account has its own onboarding state
+    final onboardingDone = prefs.getBool('onboarding_done_$userId') ?? false;
 
     if (!mounted) return;
     if (!onboardingDone) {

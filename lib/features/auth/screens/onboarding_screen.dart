@@ -124,7 +124,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
 
       // Mark onboarding as done
       final prefs = await SharedPreferences.getInstance();
-      await prefs.setBool('onboarding_done', true);
+      await prefs.setBool('onboarding_done_$userId', true);
 
       if (mounted) context.go('/home');
     } catch (e) {

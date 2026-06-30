@@ -527,22 +527,26 @@ Replace all "meal" placeholders with real personalized meal names. Keep calories
                       fontWeight: FontWeight.bold,
                     ),
                   ),
-                  ElevatedButton.icon(
-                    onPressed: _exportToPdf,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF4CAF50),
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 8,
+                  SizedBox(
+                    width: 120,
+                    height: 38,
+                    child: ElevatedButton.icon(
+                      onPressed: _exportToPdf,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF4CAF50),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 4,
+                        ),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10),
+                        ),
                       ),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(10),
+                      icon: const Icon(Icons.picture_as_pdf, size: 14),
+                      label: const Text(
+                        'Save PDF',
+                        style: TextStyle(fontSize: 12),
                       ),
-                    ),
-                    icon: const Icon(Icons.picture_as_pdf, size: 16),
-                    label: const Text(
-                      'Save PDF',
-                      style: TextStyle(fontSize: 13),
                     ),
                   ),
                 ],
