@@ -5,6 +5,9 @@ import 'package:dio/dio.dart';
 import '../../../core/services/fatsecret_service.dart';
 import 'dart:convert';
 import '../../../core/config/app_config.dart';
+import 'package:pdf/pdf.dart';
+import 'package:pdf/widgets.dart' as pw;
+import 'package:printing/printing.dart';
 
 class MealPlanScreen extends ConsumerStatefulWidget {
   const MealPlanScreen({super.key});
@@ -27,6 +30,178 @@ class _MealPlanScreenState extends ConsumerState<MealPlanScreen> {
     'Day 6',
     'Day 7',
   ];
+
+  Future<void> _exportToPdf() async {
+    if (_mealPlan == null) return;
+
+    final pdf = pw.Document();
+    final days = _mealPlan!['days'] as List;
+
+    pdf.addPage(
+      pw.MultiPage(
+        pageFormat: PdfPageFormat.a4,
+        margin: const pw.EdgeInsets.all(32),
+        build: (pw.Context context) {
+          return [
+            // Header
+            pw.Container(
+              padding: const pw.EdgeInsets.all(16),
+              decoration: pw.BoxDecoration(
+                color: PdfColors.green,
+                borderRadius: pw.BorderRadius.circular(8),
+              ),
+              child: pw.Column(
+                crossAxisAlignment: pw.CrossAxisAlignment.start,
+                children: [
+                  pw.Text(
+                    '🥗 Eatsy — 7-Day Meal Plan',
+                    style: pw.TextStyle(
+                      color: PdfColors.white,
+                      fontSize: 22,
+                      fontWeight: pw.FontWeight.bold,
+                    ),
+                  ),
+                  pw.SizedBox(height: 4),
+                  pw.Text(
+                    'Generated on ${DateTime.now().day}/${DateTime.now().month}/${DateTime.now().year}',
+                    style: const pw.TextStyle(
+                      color: PdfColors.white,
+                      fontSize: 12,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            pw.SizedBox(height: 24),
+
+            // Days
+            ...days.map((dayData) {
+              final meals = dayData['meals'] as Map<String, dynamic>;
+              final totalCals = dayData['total_calories'] ?? 0;
+
+              return pw.Column(
+                crossAxisAlignment: pw.CrossAxisAlignment.start,
+                children: [
+                  // Day header
+                  pw.Container(
+                    padding: const pw.EdgeInsets.symmetric(
+                        horizontal: 12, vertical: 8),
+                    decoration: pw.BoxDecoration(
+                      color: PdfColors.green100,
+                      borderRadius: pw.BorderRadius.circular(6),
+                    ),
+                    child: pw.Row(
+                      mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                      children: [
+                        pw.Text(
+                          dayData['day'].toString(),
+                          style: pw.TextStyle(
+                            fontWeight: pw.FontWeight.bold,
+                            fontSize: 14,
+                            color: PdfColors.green900,
+                          ),
+                        ),
+                        pw.Text(
+                          'Total: $totalCals kcal',
+                          style: pw.TextStyle(
+                            fontWeight: pw.FontWeight.bold,
+                            fontSize: 12,
+                            color: PdfColors.green700,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  pw.SizedBox(height: 8),
+
+                  // Meals table
+                  pw.Table(
+                    border: pw.TableBorder.all(
+                      color: PdfColors.grey300,
+                      width: 0.5,
+                    ),
+                    columnWidths: {
+                      0: const pw.FixedColumnWidth(70),
+                      1: const pw.FlexColumnWidth(),
+                      2: const pw.FixedColumnWidth(50),
+                      3: const pw.FixedColumnWidth(40),
+                      4: const pw.FixedColumnWidth(40),
+                      5: const pw.FixedColumnWidth(40),
+                    },
+                    children: [
+                      // Table header
+                      pw.TableRow(
+                        decoration: const pw.BoxDecoration(
+                            color: PdfColors.grey200),
+                        children: [
+                          'Meal', 'Food', 'Cal', 'P(g)', 'C(g)', 'F(g)'
+                        ]
+                            .map((h) => pw.Padding(
+                          padding: const pw.EdgeInsets.all(6),
+                          child: pw.Text(
+                            h,
+                            style: pw.TextStyle(
+                              fontWeight: pw.FontWeight.bold,
+                              fontSize: 9,
+                            ),
+                          ),
+                        ))
+                            .toList(),
+                      ),
+                      // Meal rows
+                      ...['breakfast', 'lunch', 'dinner', 'snack']
+                          .map((mealType) {
+                        final meal = meals[mealType]
+                        as Map<String, dynamic>?;
+                        if (meal == null) return pw.TableRow(children: []);
+                        return pw.TableRow(
+                          children: [
+                            mealType[0].toUpperCase() +
+                                mealType.substring(1),
+                            meal['name']?.toString() ?? '',
+                            '${meal['calories']}',
+                            '${meal['protein']}',
+                            '${meal['carbs']}',
+                            '${meal['fat']}',
+                          ]
+                              .map((cell) => pw.Padding(
+                            padding: const pw.EdgeInsets.all(6),
+                            child: pw.Text(
+                              cell,
+                              style:
+                              const pw.TextStyle(fontSize: 9),
+                            ),
+                          ))
+                              .toList(),
+                        );
+                      }),
+                    ],
+                  ),
+                  pw.SizedBox(height: 16),
+                ],
+              );
+            }),
+
+            // Footer
+            pw.Divider(),
+            pw.Text(
+              'Generated by Eatsy — Your AI Nutrition Companion',
+              style: const pw.TextStyle(
+                color: PdfColors.grey,
+                fontSize: 10,
+              ),
+              textAlign: pw.TextAlign.center,
+            ),
+          ];
+        },
+      ),
+    );
+
+    await Printing.layoutPdf(
+      onLayout: (PdfPageFormat format) async => pdf.save(),
+      name: 'Eatsy_7Day_Meal_Plan.pdf',
+    );
+  }
 
   Future<Map<String, dynamic>> _getUserData() async {
     final supabase = Supabase.instance.client;
@@ -332,6 +507,7 @@ Replace all "meal" placeholders with real personalized meal names. Keep calories
               // Day selector
               const Text(
                 'Your 7-Day Plan',
+                
                 style: TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.bold,
