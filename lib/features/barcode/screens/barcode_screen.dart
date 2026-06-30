@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../core/services/fatsecret_service.dart';
+import 'package:image_picker/image_picker.dart';
+import 'dart:io';
 
 class BarcodeScreen extends StatefulWidget {
   const BarcodeScreen({super.key});
@@ -18,10 +20,54 @@ class _BarcodeScreenState extends State<BarcodeScreen> {
 
   final List<String> _mealTypes = ['breakfast', 'lunch', 'dinner', 'snack'];
 
+  final ImagePicker _imagePicker = ImagePicker();
+
   @override
   void dispose() {
     cameraController.dispose();
     super.dispose();
+  }
+
+  Future<void> _pickImageAndScan() async {
+    try {
+      final XFile? image = await _imagePicker.pickImage(
+        source: ImageSource.gallery,
+        imageQuality: 80,
+      );
+      if (image == null) return;
+
+      final result = await cameraController.analyzeImage(image.path);
+      if (result != null && result.barcodes.isNotEmpty) {
+        final barcode = result.barcodes.first;
+        if (barcode.rawValue != null) {
+          await _onBarcodeDetected(BarcodeCapture(barcodes: [barcode]));
+        } else {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('No barcode found in image. Try another photo.'),
+                backgroundColor: Colors.orange,
+              ),
+            );
+          }
+        }
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('No barcode found in image. Try another photo.'),
+              backgroundColor: Colors.orange,
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error scanning image: $e')),
+        );
+      }
+    }
   }
 
   Future<void> _onBarcodeDetected(BarcodeCapture capture) async {
@@ -256,8 +302,14 @@ class _BarcodeScreenState extends State<BarcodeScreen> {
         ),
         actions: [
           IconButton(
+            icon: const Icon(Icons.photo_library, color: Colors.white),
+            onPressed: _pickImageAndScan,
+            tooltip: 'Upload from gallery',
+          ),
+          IconButton(
             icon: const Icon(Icons.flash_on, color: Colors.white),
             onPressed: () => cameraController.toggleTorch(),
+            tooltip: 'Toggle flash',
           ),
         ],
       ),
@@ -292,6 +344,37 @@ class _BarcodeScreenState extends State<BarcodeScreen> {
                     color: Colors.white,
                     fontSize: 16,
                     fontWeight: FontWeight.w500,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                GestureDetector(
+                  onTap: _pickImageAndScan,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 20,
+                      vertical: 10,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.2),
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(color: Colors.white38),
+                    ),
+                    child: const Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.photo_library,
+                            color: Colors.white, size: 18),
+                        SizedBox(width: 8),
+                        Text(
+                          'Upload from Gallery',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 14,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               ],

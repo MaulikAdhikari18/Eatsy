@@ -86,29 +86,14 @@ class _MealPlanScreenState extends ConsumerState<MealPlanScreen> {
     final weightGoal = goals?['weight_goal'] ?? 'not set';
 
     return '''
-Create a 7-day personalized meal plan for this user:
-- Current weight: ${weight ?? 'unknown'} kg
-- Target weight: $weightGoal kg  
-- Daily calorie goal: $dailyCalories kcal
-- Protein goal: ${proteinGoal}g, Carbs: ${carbsGoal}g, Fat: ${fatGoal}g
-- Foods they like: $topFoodNames
+Create a 7-day meal plan. Return ONLY valid JSON, nothing else.
 
-Return ONLY this JSON, no other text:
-{
-  "days": [
-    {
-      "day": "Day 1",
-      "total_calories": $dailyCalories,
-      "meals": {
-        "breakfast": {"name": "meal name", "calories": 400, "protein": 15, "carbs": 60, "fat": 8},
-        "lunch": {"name": "meal name", "calories": 600, "protein": 35, "carbs": 65, "fat": 15},
-        "dinner": {"name": "meal name", "calories": 550, "protein": 30, "carbs": 60, "fat": 12},
-        "snack": {"name": "meal name", "calories": 200, "protein": 8, "carbs": 25, "fat": 6}
-      }
-    },
-    ... repeat for all 7 days
-  ]
-}
+User: weight=${weight ?? 70}kg, target=${weightGoal}kg, calories=$dailyCalories, protein=${proteinGoal}g, carbs=${carbsGoal}g, fat=${fatGoal}g, likes=$topFoodNames
+
+JSON format (ALL 7 days, ALL 4 meals per day):
+{"days":[{"day":"Day 1","total_calories":$dailyCalories,"meals":{"breakfast":{"name":"meal","calories":350,"protein":15,"carbs":50,"fat":8},"lunch":{"name":"meal","calories":550,"protein":35,"carbs":60,"fat":14},"dinner":{"name":"meal","calories":500,"protein":30,"carbs":55,"fat":12},"snack":{"name":"meal","calories":200,"protein":10,"carbs":25,"fat":6}}},{"day":"Day 2","total_calories":$dailyCalories,"meals":{"breakfast":{"name":"meal","calories":350,"protein":15,"carbs":50,"fat":8},"lunch":{"name":"meal","calories":550,"protein":35,"carbs":60,"fat":14},"dinner":{"name":"meal","calories":500,"protein":30,"carbs":55,"fat":12},"snack":{"name":"meal","calories":200,"protein":10,"carbs":25,"fat":6}}},{"day":"Day 3","total_calories":$dailyCalories,"meals":{"breakfast":{"name":"meal","calories":350,"protein":15,"carbs":50,"fat":8},"lunch":{"name":"meal","calories":550,"protein":35,"carbs":60,"fat":14},"dinner":{"name":"meal","calories":500,"protein":30,"carbs":55,"fat":12},"snack":{"name":"meal","calories":200,"protein":10,"carbs":25,"fat":6}}},{"day":"Day 4","total_calories":$dailyCalories,"meals":{"breakfast":{"name":"meal","calories":350,"protein":15,"carbs":50,"fat":8},"lunch":{"name":"meal","calories":550,"protein":35,"carbs":60,"fat":14},"dinner":{"name":"meal","calories":500,"protein":30,"carbs":55,"fat":12},"snack":{"name":"meal","calories":200,"protein":10,"carbs":25,"fat":6}}},{"day":"Day 5","total_calories":$dailyCalories,"meals":{"breakfast":{"name":"meal","calories":350,"protein":15,"carbs":50,"fat":8},"lunch":{"name":"meal","calories":550,"protein":35,"carbs":60,"fat":14},"dinner":{"name":"meal","calories":500,"protein":30,"carbs":55,"fat":12},"snack":{"name":"meal","calories":200,"protein":10,"carbs":25,"fat":6}}},{"day":"Day 6","total_calories":$dailyCalories,"meals":{"breakfast":{"name":"meal","calories":350,"protein":15,"carbs":50,"fat":8},"lunch":{"name":"meal","calories":550,"protein":35,"carbs":60,"fat":14},"dinner":{"name":"meal","calories":500,"protein":30,"carbs":55,"fat":12},"snack":{"name":"meal","calories":200,"protein":10,"carbs":25,"fat":6}}},{"day":"Day 7","total_calories":$dailyCalories,"meals":{"breakfast":{"name":"meal","calories":350,"protein":15,"carbs":50,"fat":8},"lunch":{"name":"meal","calories":550,"protein":35,"carbs":60,"fat":14},"dinner":{"name":"meal","calories":500,"protein":30,"carbs":55,"fat":12},"snack":{"name":"meal","calories":200,"protein":10,"carbs":25,"fat":6}}}]}
+
+Replace all "meal" placeholders with real personalized meal names. Keep calories close to $dailyCalories total per day.
 ''';
   }
 
