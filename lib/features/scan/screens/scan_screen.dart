@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:dio/dio.dart';
+import '../../../core/services/fatsecret_service.dart';
 
 class ScanScreen extends StatefulWidget {
   const ScanScreen({super.key});
@@ -49,48 +50,21 @@ class _ScanScreenState extends State<ScanScreen> {
   Future<void> _analyzeImage(File image) async {
     setState(() => _isAnalyzing = true);
     try {
-      // TODO: Replace with actual FatSecret Image Recognition API
-      // when your mentor gives you the Client ID and Secret
-      // For now using placeholder response
+      final result = await fatSecretService.recognizeFood(image);
 
-      await Future.delayed(const Duration(seconds: 2)); // Simulate API call
-
-      // Placeholder result — replace with real API response later
-      setState(() {
-        _scanResult = {
-          'food_name': 'Mixed Meal (Demo)',
-          'calories': 450.0,
-          'protein': 25.0,
-          'carbs': 55.0,
-          'fat': 15.0,
-          'items': [
-            {'name': 'Rice', 'calories': 200},
-            {'name': 'Chicken', 'calories': 165},
-            {'name': 'Vegetables', 'calories': 85},
-          ],
-        };
-      });
-
-      /* REAL API CALL — uncomment when you have FatSecret credentials:
-
-      final bytes = await image.readAsBytes();
-      final base64Image = base64Encode(bytes);
-
-      final dio = Dio();
-      final response = await dio.post(
-        'https://platform.fatsecret.com/rest/image-recognition/v1',
-        options: Options(headers: {
-          'Authorization': 'Bearer YOUR_ACCESS_TOKEN',
-          'Content-Type': 'application/json',
-        }),
-        data: {
-          'image_b64': base64Image,
-          'include_food_data': true,
-        },
-      );
-
-      setState(() => _scanResult = response.data);
-      */
+      if (result != null) {
+        setState(() => _scanResult = result);
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text(
+                  'Could not detect food. Try a clearer photo!'),
+              backgroundColor: Colors.orange,
+            ),
+          );
+        }
+      }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
