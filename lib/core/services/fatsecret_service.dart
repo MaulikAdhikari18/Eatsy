@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:dio/dio.dart';
+import 'dart:io';
 
 class FatSecretService {
   static const String _clientId = '0ef5041a77234d7c902e3a8dfff68d9b';
@@ -156,6 +157,87 @@ class FatSecretService {
       return double.tryParse(match?.group(1) ?? '0') ?? 0;
     } catch (_) {
       return 0;
+    }
+  }
+  Future<Map<String, dynamic>?> recognizeFood(File imageFile) async {
+    final token = await _getAccessToken();
+
+    try {
+      final bytes = await imageFile.readAsBytes();
+      final base64Image = base64Encode(bytes);
+
+      print('🔍 Sending image to FatSecret...');
+
+      final response = await _dio.post(
+        'https://platform.fatsecret.com/rest/image-recognition/v1',
+        options: Options(
+          headers: {
+            'Authorization': 'Bearer $token',
+            'Content-Type': 'application/json',
+          },
+          validateStatus: (status) => true,
+        ),
+        data: {
+          'image_b64': base64Image,
+          'include_food_data': true,
+          'region': 'India',
+          'language': 'en',
+        },
+      );
+
+      print('📦 Image recognition response: ${response.data}');
+
+      if (response.statusCode != 200) {
+        print('❌ Error: ${response.data}');
+        return null;
+      }
+
+      final foodItems = response.data['food_response'];
+      if (foodItems == null || foodItems.isEmpty) return null;
+
+      // Build result from top detected food
+      final topFood = foodItems[0];
+      final serving = topFood['food']?['servings']?['serving'];
+      final firstServing = serving is List ? serving[0] : serving;
+
+      double totalCalories = 0;
+      double totalProtein = 0;
+      double totalCarbs = 0;
+      double totalFat = 0;
+      List<Map<String, dynamic>> detectedItems = [];
+
+      for (final item in foodItems) {
+        final itemServing = item['food']?['servings']?['serving'];
+        final s = itemServing is List ? itemServing[0] : itemServing;
+        final cal =
+            double.tryParse(s?['calories']?.toString() ?? '0') ?? 0;
+        totalCalories += cal;
+        totalProtein +=
+            double.tryParse(s?['protein']?.toString() ?? '0') ?? 0;
+        totalCarbs +=
+            double.tryParse(s?['carbohydrate']?.toString() ?? '0') ?? 0;
+        totalFat +=
+            double.tryParse(s?['fat']?.toString() ?? '0') ?? 0;
+
+        detectedItems.add({
+          'name': item['food']?['food_name'] ?? 'Unknown',
+          'calories': cal.toInt(),
+        });
+      }
+
+      return {
+        'food_name': foodItems.length == 1
+            ? topFood['food']?['food_name'] ?? 'Detected Meal'
+            : 'Mixed Meal (${foodItems.length} items)'
+        'calories': totalCalories,
+        'protein': totalProtein,
+        'carbs': totalCarbs,
+        'fat': totalFat,
+        'items': detectedItems,
+      };
+    } catch (e) {
+      print('❌ Image recognition error: $e');
+      return null;
     }
   }
 }
