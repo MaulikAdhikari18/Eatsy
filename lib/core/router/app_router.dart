@@ -8,9 +8,6 @@ import '../../features/auth/screens/signup_screen.dart';
 import '../../features/auth/screens/onboarding_screen.dart';
 import '../../features/dashboard/screens/dashboard_screen.dart';
 
-final authStateProvider = StreamProvider<AuthState>((ref) {
-  return Supabase.instance.client.auth.onAuthStateChange;
-});
 
 final appRouterProvider = Provider<GoRouter>((ref) {
   final router = GoRouter(

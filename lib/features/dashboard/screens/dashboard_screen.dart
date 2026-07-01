@@ -10,8 +10,6 @@ import '../controllers/dashboard_controller.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:go_router/go_router.dart';
 import '../../auth/controllers/auth_controller.dart';
-import '../../mealplan/screens/meal_plan_screen.dart';
-
 
 class DashboardScreen extends ConsumerStatefulWidget {
   const DashboardScreen({super.key});
@@ -30,7 +28,6 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
       const FoodLogScreen(),
       const ScanScreen(),
       const GoalsScreen(),
-      const MealPlanScreen(),
     ];
 
     return Scaffold(
@@ -67,11 +64,6 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
             icon: Icon(Icons.flag_outlined),
             selectedIcon: Icon(Icons.flag),
             label: 'Goals',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.calendar_month_outlined),
-            selectedIcon: Icon(Icons.calendar_month),
-            label: 'Plan',
           ),
         ],
       ),
@@ -154,7 +146,6 @@ class _HomeTab extends ConsumerWidget {
               ),
               onTap: () async {
                 Navigator.pop(context);
-                await Future.delayed(const Duration(milliseconds: 100));
                 await ref.read(authControllerProvider.notifier).signOut();
                 if (context.mounted) {
                   context.go('/login');
