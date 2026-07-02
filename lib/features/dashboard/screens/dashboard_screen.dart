@@ -307,41 +307,26 @@ class _HomeTab extends ConsumerWidget {
                   data: (summary) {
                     final meals = summary.todaysMeals;
                     if (meals.isEmpty) return _EmptyMeals();
-                    return ListView.builder(
-                      shrinkWrap: true,
-                      physics: const NeverScrollableScrollPhysics(),
-                      itemCount: meals.length,
-                      itemBuilder: (context, index) {
-                        final log = meals[index];
-                        return Container(
-                          margin: const EdgeInsets.only(bottom: 10),
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: ListTile(
-                            leading: const CircleAvatar(
-                              backgroundColor: Color(0xFFE8F5E9),
-                              child: Icon(Icons.restaurant,
-                                  color: Color(0xFF4CAF50), size: 20),
-                            ),
-                            title: Text(
-                              log['food_name']?.toString() ?? '',
-                              style: const TextStyle(
-                                  fontWeight: FontWeight.w600),
-                            ),
-                            subtitle: Text(
-                              '${((log['calories'] ?? 0) as num).toInt()} kcal · ${log['meal_type'] ?? ''}',
-                              style: const TextStyle(fontSize: 12),
-                            ),
-                            trailing: Text(
-                              '${((log['protein'] ?? 0) as num).toInt()}p · ${((log['carbs'] ?? 0) as num).toInt()}c · ${((log['fat'] ?? 0) as num).toInt()}f',
-                              style: const TextStyle(
-                                  fontSize: 11, color: Colors.grey),
-                            ),
-                          ),
-                        );
-                      },
+
+                    final Map<String, List<Map<String, dynamic>>> grouped = {
+                      'breakfast': [],
+                      'lunch': [],
+                      'dinner': [],
+                      'snack': [],
+                    };
+                    for (final meal in meals) {
+                      final type = meal['meal_type']?.toString() ?? 'snack';
+                      grouped[type]?.add(meal);
+                    }
+
+                    return Column(
+                      children: grouped.entries
+                          .where((e) => e.value.isNotEmpty)
+                          .map((e) => _MealSection(
+                        mealType: e.key,
+                        meals: e.value,
+                      ))
+                          .toList(),
                     );
                   },
                   loading: () => const _MealsSkeleton(),
@@ -720,6 +705,213 @@ class _MealsSkeleton extends StatelessWidget {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
+      ),
+    );
+  }
+}
+
+class _MealSection extends StatefulWidget {
+  final String mealType;
+  final List<Map<String, dynamic>> meals;
+
+  const _MealSection({
+    required this.mealType,
+    required this.meals,
+  });
+
+  @override
+  State<_MealSection> createState() => _MealSectionState();
+}
+
+class _MealSectionState extends State<_MealSection> {
+  bool _isExpanded = true;
+
+  IconData get _mealIcon {
+    switch (widget.mealType) {
+      case 'breakfast':
+        return Icons.wb_sunny_outlined;
+      case 'lunch':
+        return Icons.light_mode_outlined;
+      case 'dinner':
+        return Icons.nights_stay_outlined;
+      case 'snack':
+        return Icons.cookie_outlined;
+      default:
+        return Icons.restaurant_outlined;
+    }
+  }
+
+  Color get _mealColor {
+    switch (widget.mealType) {
+      case 'breakfast':
+        return const Color(0xFFFB8C00);
+      case 'lunch':
+        return const Color(0xFF4CAF50);
+      case 'dinner':
+        return const Color(0xFF3F51B5);
+      case 'snack':
+        return const Color(0xFFE53935);
+      default:
+        return Colors.grey;
+    }
+  }
+
+  double get _totalCalories => widget.meals
+      .fold(0, (sum, m) => sum + ((m['calories'] ?? 0) as num).toDouble());
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          // Meal type header
+          GestureDetector(
+            onTap: () => setState(() => _isExpanded = !_isExpanded),
+            child: Container(
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: _mealColor.withOpacity(0.05),
+                borderRadius: BorderRadius.vertical(
+                  top: const Radius.circular(16),
+                  bottom: _isExpanded
+                      ? Radius.zero
+                      : const Radius.circular(16),
+                ),
+              ),
+              child: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: _mealColor.withOpacity(0.15),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Icon(_mealIcon, color: _mealColor, size: 18),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          widget.mealType[0].toUpperCase() +
+                              widget.mealType.substring(1),
+                          style: TextStyle(
+                            fontWeight: FontWeight.w700,
+                            fontSize: 14,
+                            color: _mealColor,
+                          ),
+                        ),
+                        Text(
+                          '${widget.meals.length} item${widget.meals.length > 1 ? 's' : ''} · ${_totalCalories.toInt()} kcal',
+                          style: const TextStyle(
+                            color: Colors.grey,
+                            fontSize: 12,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Icon(
+                    _isExpanded
+                        ? Icons.keyboard_arrow_up
+                        : Icons.keyboard_arrow_down,
+                    color: Colors.grey,
+                  ),
+                ],
+              ),
+            ),
+          ),
+
+          // Food items
+          if (_isExpanded)
+            ListView.separated(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              itemCount: widget.meals.length,
+              separatorBuilder: (_, __) => const Divider(
+                height: 1,
+                indent: 16,
+                endIndent: 16,
+              ),
+              itemBuilder: (context, index) {
+                final log = widget.meals[index];
+                final calories = ((log['calories'] ?? 0) as num).toInt();
+                final protein = ((log['protein'] ?? 0) as num).toInt();
+                final carbs = ((log['carbs'] ?? 0) as num).toInt();
+                final fat = ((log['fat'] ?? 0) as num).toInt();
+
+                return Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 14,
+                    vertical: 10,
+                  ),
+                  child: Row(
+                    children: [
+                      Container(
+                        width: 36,
+                        height: 36,
+                        decoration: BoxDecoration(
+                          color: _mealColor.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Icon(
+                          Icons.restaurant,
+                          color: _mealColor,
+                          size: 18,
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              log['food_name']?.toString() ?? '',
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w600,
+                                fontSize: 13,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              'P: ${protein}g · C: ${carbs}g · F: ${fat}g',
+                              style: const TextStyle(
+                                color: Colors.grey,
+                                fontSize: 11,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      Text(
+                        '$calories kcal',
+                        style: TextStyle(
+                          fontWeight: FontWeight.w700,
+                          fontSize: 13,
+                          color: _mealColor,
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              },
+            ),
+        ],
       ),
     );
   }
