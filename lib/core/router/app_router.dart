@@ -1,3 +1,4 @@
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -10,28 +11,13 @@ import '../../features/dashboard/screens/dashboard_screen.dart';
 final appRouterProvider = Provider<GoRouter>((ref) {
   return GoRouter(
     initialLocation: '/',
-    redirect: (context, state) async {
-      final session = Supabase.instance.client.auth.currentSession;
-      final isLoggedIn = session != null;
-      final isAuthRoute = state.matchedLocation == '/login' ||
-          state.matchedLocation == '/signup';
-      final isOnboarding = state.matchedLocation == '/onboarding';
-
-      if (!isLoggedIn && !isAuthRoute) return '/login';
-      if (isLoggedIn && isAuthRoute) return '/';
-
-      // Check if onboarding is done
-      if (isLoggedIn && !isOnboarding) {
-        final prefs = await SharedPreferences.getInstance();
-        final onboardingDone = prefs.getBool('onboarding_done') ?? false;
-        if (!onboardingDone) return '/onboarding';
-      }
-
-      return null;
-    },
     routes: [
       GoRoute(
         path: '/',
+        builder: (context, state) => const _StartupScreen(),
+      ),
+      GoRoute(
+        path: '/home',
         builder: (context, state) => const DashboardScreen(),
       ),
       GoRoute(
@@ -49,3 +35,49 @@ final appRouterProvider = Provider<GoRouter>((ref) {
     ],
   );
 });
+
+class _StartupScreen extends StatefulWidget {
+  const _StartupScreen();
+
+  @override
+  State<_StartupScreen> createState() => _StartupScreenState();
+}
+
+class _StartupScreenState extends State<_StartupScreen> {
+  @override
+  void initState() {
+    super.initState();
+    _redirect();
+  }
+
+  Future<void> _redirect() async {
+    await Future.delayed(Duration.zero);
+    if (!mounted) return;
+
+    final session = Supabase.instance.client.auth.currentSession;
+    if (session == null) {
+      context.go('/login');
+      return;
+    }
+
+    final prefs = await SharedPreferences.getInstance();
+    //await prefs.setBool('onboarding_done', false);
+    final onboardingDone = prefs.getBool('onboarding_done') ?? false;
+
+    if (!mounted) return;
+    if (!onboardingDone) {
+      context.go('/onboarding');
+    } else {
+      context.go('/home');
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return const Scaffold(
+      body: Center(
+        child: CircularProgressIndicator(color: Color(0xFF4CAF50)),
+      ),
+    );
+  }
+}

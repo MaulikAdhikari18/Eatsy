@@ -126,7 +126,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setBool('onboarding_done', true);
 
-      if (mounted) context.go('/');
+      if (mounted) context.go('/home');
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
