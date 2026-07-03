@@ -3,14 +3,15 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'core/theme/app_theme.dart';
 import 'core/router/app_router.dart';
+import 'core/config/app_config.dart';
 
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   await Supabase.initialize(
-    url: 'https://ghobobiocpjfiwcrrfbr.supabase.co',
-    anonKey: 'sb_publishable_GDyGB6b3W6KTW56UZYpQoQ_BsYaWSdh',
+    url: AppConfig.supabaseUrl,
+    anonKey: AppConfig.supabaseKey,
   );
 
   runApp(

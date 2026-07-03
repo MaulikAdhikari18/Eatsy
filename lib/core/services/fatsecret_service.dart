@@ -1,10 +1,12 @@
 import 'dart:convert';
 import 'package:dio/dio.dart';
 import 'dart:io';
+import '../config/app_config.dart';
+
 
 class FatSecretService {
-  static const String _clientId = '0ef5041a77234d7c902e3a8dfff68d9b';
-  static const String _clientSecret = '9d88939f38ac4a628298666e33c771e8';
+  static const String _clientId = AppConfig.fatSecretClientId;
+  static const String _clientSecret = AppConfig.fatSecretClientSecret;
   static const String _baseUrl = 'https://platform.fatsecret.com/rest/server.api';
   static const String _authUrl = 'https://oauth.fatsecret.com/connect/token';
 
