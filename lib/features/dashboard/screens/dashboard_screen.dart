@@ -154,6 +154,7 @@ class _HomeTab extends ConsumerWidget {
               ),
               onTap: () async {
                 Navigator.pop(context);
+                await Future.delayed(const Duration(milliseconds: 100));
                 await ref.read(authControllerProvider.notifier).signOut();
                 if (context.mounted) {
                   context.go('/login');

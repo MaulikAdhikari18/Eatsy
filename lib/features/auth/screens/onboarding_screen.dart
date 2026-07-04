@@ -37,6 +37,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   ];
 
   void _nextPage() {
+    debugPrint('_nextPage tapped, currentPage=$_currentPage, isLoading=$_isLoading');
     if (_currentPage < 3) {
       _pageController.nextPage(
         duration: const Duration(milliseconds: 300),
@@ -80,13 +81,24 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   }
 
   Future<void> _saveAndContinue() async {
+    debugPrint('_saveAndContinue started');
     setState(() => _isLoading = true);
     try {
       _updateCalories();
 
       final supabase = Supabase.instance.client;
       final userId = supabase.auth.currentUser?.id;
-      if (userId == null) return;
+      if (userId == null) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Session expired. Please log in again.'),
+            ),
+          );
+          context.go('/login');
+        }
+        return;
+      }
 
       // Calculate macros based on calories
       final protein = (_dailyCalories * 0.30 / 4).roundToDouble();
