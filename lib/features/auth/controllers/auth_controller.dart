@@ -41,5 +41,6 @@ class AuthController extends StateNotifier<AsyncValue<void>> {
 
   Future<void> signOut() async {
     await _supabase.auth.signOut();
+    await Future.delayed(const Duration(milliseconds: 200));
   }
 }
