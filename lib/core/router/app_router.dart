@@ -49,32 +49,35 @@ class _StartupScreen extends ConsumerStatefulWidget {
 }
 
 class _StartupScreenState extends ConsumerState<_StartupScreen> {
+  bool _isRedirecting = false;
+
   @override
   void initState() {
     super.initState();
     _redirect();
-    // Listen to auth state changes
-    Supabase.instance.client.auth.onAuthStateChange.listen((data) {
-      if (mounted) _redirect();
-    });
   }
 
   Future<void> _redirect() async {
-    await Future.delayed(Duration.zero);
+    if (_isRedirecting) return;
+    _isRedirecting = true;
+
+    // Small delay to let Supabase finish initializing
+    await Future.delayed(const Duration(milliseconds: 300));
     if (!mounted) return;
 
     final session = Supabase.instance.client.auth.currentSession;
     if (session == null) {
+      _isRedirecting = false;
       context.go('/login');
       return;
     }
 
     final userId = session.user.id;
     final prefs = await SharedPreferences.getInstance();
-    // Use user-specific key so each account has its own onboarding state
     final onboardingDone = prefs.getBool('onboarding_done_$userId') ?? false;
 
     if (!mounted) return;
+    _isRedirecting = false;
     if (!onboardingDone) {
       context.go('/onboarding');
     } else {
