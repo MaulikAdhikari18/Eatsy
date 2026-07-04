@@ -61,13 +61,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
         _nameController.text.trim(),
       );
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Account created! Please check your email to verify.'),
-            backgroundColor: Color(0xFF4CAF50),
-          ),
-        );
-        context.go('/login');
+        context.go('/');
       }
     } catch (e) {
       if (mounted) {
