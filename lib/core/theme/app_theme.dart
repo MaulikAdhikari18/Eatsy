@@ -1,14 +1,13 @@
 import 'package:flutter/material.dart';
 
 class AppTheme {
-  // Brand colors
   static const Color primary = Color(0xFF4CAF50);
   static const Color secondary = Color(0xFF81C784);
   static const Color accent = Color(0xFFFF7043);
   static const Color background = Color(0xFFF9F9F9);
   static const Color surface = Color(0xFFFFFFFF);
   static const Color textPrimary = Color(0xFF1A1A1A);
-  static const Color textSecondary = Color(0xFF757575);
+  static const Color textSecondary = Color(0xFF555555);
 
   static ThemeData lightTheme = ThemeData(
     useMaterial3: true,
@@ -28,6 +27,14 @@ class AppTheme {
       ),
       iconTheme: IconThemeData(color: textPrimary),
     ),
+    textTheme: const TextTheme(
+      bodyLarge: TextStyle(color: textPrimary),
+      bodyMedium: TextStyle(color: textPrimary),
+      bodySmall: TextStyle(color: textSecondary),
+      titleLarge: TextStyle(color: textPrimary, fontWeight: FontWeight.bold),
+      titleMedium: TextStyle(color: textPrimary, fontWeight: FontWeight.w600),
+      titleSmall: TextStyle(color: textPrimary, fontWeight: FontWeight.w500),
+    ),
     elevatedButtonTheme: ElevatedButtonThemeData(
       style: ElevatedButton.styleFrom(
         backgroundColor: primary,
@@ -42,6 +49,16 @@ class AppTheme {
         ),
       ),
     ),
+    outlinedButtonTheme: OutlinedButtonThemeData(
+      style: OutlinedButton.styleFrom(
+        foregroundColor: primary,
+        side: const BorderSide(color: primary),
+        minimumSize: const Size(double.infinity, 52),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+        ),
+      ),
+    ),
     inputDecorationTheme: InputDecorationTheme(
       filled: true,
       fillColor: Colors.grey[100],
@@ -53,10 +70,46 @@ class AppTheme {
         borderRadius: BorderRadius.circular(12),
         borderSide: const BorderSide(color: primary, width: 2),
       ),
+      hintStyle: const TextStyle(color: Color(0xFF9E9E9E)),
+      labelStyle: const TextStyle(color: textPrimary),
       contentPadding: const EdgeInsets.symmetric(
         horizontal: 16,
         vertical: 14,
       ),
+    ),
+    navigationBarTheme: NavigationBarThemeData(
+      backgroundColor: surface,
+      indicatorColor: primary.withOpacity(0.15),
+      labelTextStyle: WidgetStateProperty.resolveWith((states) {
+        if (states.contains(WidgetState.selected)) {
+          return const TextStyle(
+            color: primary,
+            fontSize: 12,
+            fontWeight: FontWeight.w600,
+          );
+        }
+        return const TextStyle(
+          color: textSecondary,
+          fontSize: 12,
+        );
+      }),
+      iconTheme: WidgetStateProperty.resolveWith((states) {
+        if (states.contains(WidgetState.selected)) {
+          return const IconThemeData(color: primary);
+        }
+        return const IconThemeData(color: textSecondary);
+      }),
+    ),
+    cardTheme: CardThemeData(
+      color: surface,
+      elevation: 0,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+      ),
+    ),
+    dividerTheme: const DividerThemeData(
+      color: Color(0xFFEEEEEE),
+      thickness: 1,
     ),
   );
 

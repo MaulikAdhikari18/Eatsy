@@ -58,8 +58,7 @@ class _StartupScreenState extends ConsumerState<_StartupScreen> {
     if (_isRedirecting) return;
     _isRedirecting = true;
 
-    // Small delay to let Supabase finish initializing
-    await Future.delayed(const Duration(milliseconds: 300));
+    await Future.delayed(const Duration(milliseconds: 100));
     if (!mounted) return;
 
     final session = Supabase.instance.client.auth.currentSession;

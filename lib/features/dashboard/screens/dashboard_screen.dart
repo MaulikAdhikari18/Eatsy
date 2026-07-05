@@ -158,7 +158,7 @@ class _HomeTab extends ConsumerWidget {
                   await Supabase.instance.client.auth.signOut();
                 } catch (_) {}
                 if (context.mounted) {
-                  context.go('/login');
+                  context.go('/');
                 }
               },
             ),
@@ -199,12 +199,13 @@ class _HomeTab extends ConsumerWidget {
                           style: const TextStyle(
                             fontSize: 22,
                             fontWeight: FontWeight.bold,
+                            color: Color(0xFF1A1A1A),
                           ),
                         ),
                         Text(
                           today,
                           style: const TextStyle(
-                            color: Colors.grey,
+                            color: Color(0xFF757575),
                             fontSize: 14,
                           ),
                         ),
@@ -259,9 +260,10 @@ class _HomeTab extends ConsumerWidget {
                 // Quick Add
                 const Text(
                   'Quick Add',
-                  style: TextStyle(
+                  style: const TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
+                    color: Color(0xFF1A1A1A),
                   ),
                 ),
                 const SizedBox(height: 12),
@@ -306,9 +308,10 @@ class _HomeTab extends ConsumerWidget {
                 // Today's Meals
                 const Text(
                   "Today's Meals",
-                  style: TextStyle(
+                  style: const TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
+                    color: Color(0xFF1A1A1A),
                   ),
                 ),
                 const SizedBox(height: 12),
@@ -414,6 +417,7 @@ class _CalorieCard extends StatelessWidget {
                       style: const TextStyle(
                         fontSize: 20,
                         fontWeight: FontWeight.bold,
+                        color: Color(0xFF1A1A1A),
                       ),
                     ),
                     const Text(
@@ -570,6 +574,7 @@ class _MacroCard extends StatelessWidget {
             style: const TextStyle(
               fontWeight: FontWeight.bold,
               fontSize: 18,
+              color: Color(0xFF1A1A1A),
             ),
           ),
           const SizedBox(height: 6),
@@ -586,7 +591,7 @@ class _MacroCard extends StatelessWidget {
           Text(
             'of ${goal.toInt()}g',
             style:
-            const TextStyle(color: Colors.grey, fontSize: 11),
+            const TextStyle(color: Color(0xFF757575), fontSize: 11),
           ),
         ],
       ),
@@ -662,7 +667,7 @@ class _EmptyMeals extends StatelessWidget {
           SizedBox(height: 4),
           Text(
             'Tap Scan or Search to add your first meal',
-            style: TextStyle(color: Colors.grey, fontSize: 12),
+            style: TextStyle(color: Color(0xFF757575), fontSize: 12),
           ),
         ],
       ),
@@ -827,7 +832,7 @@ class _MealSectionState extends State<_MealSection> {
                         Text(
                           '${widget.meals.length} item${widget.meals.length > 1 ? 's' : ''} · ${_totalCalories.toInt()} kcal',
                           style: const TextStyle(
-                            color: Colors.grey,
+                            color: Color(0xFF757575),
                             fontSize: 12,
                           ),
                         ),
@@ -893,6 +898,7 @@ class _MealSectionState extends State<_MealSection> {
                               style: const TextStyle(
                                 fontWeight: FontWeight.w600,
                                 fontSize: 13,
+                                color: Color(0xFF1A1A1A),
                               ),
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
@@ -901,7 +907,7 @@ class _MealSectionState extends State<_MealSection> {
                             Text(
                               'P: ${protein}g · C: ${carbs}g · F: ${fat}g',
                               style: const TextStyle(
-                                color: Colors.grey,
+                                color: Color(0xFF757575),
                                 fontSize: 11,
                               ),
                             ),
