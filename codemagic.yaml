@@ -22,6 +22,12 @@ workflows:
             static const String groqApiKey = '$GROQ_API_KEY';
           }
           EOF
+      - name: Install CocoaPods dependencies
+        script: |
+          cd ios
+          rm -rf Pods Podfile.lock
+          pod install
+          cd ..
       - name: Build iOS (Simulator, no signing)
         script: flutter build ios --simulator --debug
     artifacts:
