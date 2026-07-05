@@ -12,6 +12,7 @@ workflows:
         script: flutter packages pub get
       - name: Generate app_config.dart
         script: |
+          mkdir -p lib/core/config
           cat > lib/core/config/app_config.dart << EOF
           class AppConfig {
             static const String supabaseUrl = '$SUPABASE_URL';
