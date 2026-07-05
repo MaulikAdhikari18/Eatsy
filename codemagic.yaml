@@ -4,10 +4,23 @@ workflows:
     max_build_duration: 60
     instance_type: mac_mini_m2
     environment:
+      groups:
+        - app_config
       flutter: stable
     scripts:
       - name: Get Flutter packages
         script: flutter packages pub get
+      - name: Generate app_config.dart
+        script: |
+          cat > lib/core/config/app_config.dart << EOF
+          class AppConfig {
+            static const String supabaseUrl = '$SUPABASE_URL';
+            static const String supabaseKey = '$SUPABASE_KEY';
+            static const String fatSecretClientId = '$FATSECRET_CLIENT_ID';
+            static const String fatSecretClientSecret = '$FATSECRET_CLIENT_SECRET';
+            static const String groqApiKey = '$GROQ_API_KEY';
+          }
+          EOF
       - name: Build iOS (Simulator, no signing)
         script: flutter build ios --simulator --debug
     artifacts:
