@@ -143,6 +143,7 @@ class _MealPlanScreenState extends ConsumerState<MealPlanScreen> {
                             style: pw.TextStyle(
                               fontWeight: pw.FontWeight.bold,
                               fontSize: 9,
+                              color: PdfColors.black,
                             ),
                           ),
                         ))
@@ -425,7 +426,7 @@ Replace all "meal" placeholders with real personalized meal names. Keep calories
     return Scaffold(
       backgroundColor: const Color(0xFFF9F9F9),
       appBar: AppBar(
-        title: const Text('Meal Plan'),
+        title: const Text('Meal Plan', style: TextStyle(color: Color(0xFF1A1A1A), fontWeight: FontWeight.w600, fontSize: 18)),
         backgroundColor: Colors.white,
         elevation: 0,
       ),
@@ -506,7 +507,7 @@ Replace all "meal" placeholders with real personalized meal names. Keep calories
                       'AI is creating your personalized\nmeal plan...',
                       textAlign: TextAlign.center,
                       style: TextStyle(
-                        color: Colors.grey,
+                        color: const Color(0xFF9E9E9E),
                         fontSize: 14,
                       ),
                     ),
@@ -525,6 +526,7 @@ Replace all "meal" placeholders with real personalized meal names. Keep calories
                     style: TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.bold,
+                      color: const Color(0xFF1A1A1A),
                     ),
                   ),
                   SizedBox(
@@ -674,13 +676,13 @@ Replace all "meal" placeholders with real personalized meal names. Keep calories
                       style: TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.w600,
-                        color: Colors.grey,
+                        color: const Color(0xFF9E9E9E),
                       ),
                     ),
                     const SizedBox(height: 8),
                     const Text(
                       'Tap "Generate My Plan" to get started',
-                      style: TextStyle(color: Colors.grey, fontSize: 13),
+                      style: TextStyle(color: const Color(0xFF9E9E9E), fontSize: 13),
                     ),
                   ],
                 ),
@@ -825,6 +827,7 @@ class _MealPlanCard extends StatelessWidget {
                   style: const TextStyle(
                     fontWeight: FontWeight.w600,
                     fontSize: 15,
+                    color: const Color(0xFF1A1A1A),
                   ),
                 ),
                 const SizedBox(height: 10),
