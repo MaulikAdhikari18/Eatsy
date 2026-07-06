@@ -148,7 +148,7 @@ class _FoodLogScreenState extends ConsumerState<FoodLogScreen> {
     return Scaffold(
       backgroundColor: const Color(0xFFF9F9F9),
       appBar: AppBar(
-        title: const Text('Food Log'),
+        title: const Text('Food Log', style: TextStyle(color: Color(0xFF1A1A1A), fontWeight: FontWeight.w600, fontSize: 18)),
         backgroundColor: Colors.white,
         elevation: 0,
       ),
@@ -231,10 +231,10 @@ class _FoodLogScreenState extends ConsumerState<FoodLogScreen> {
                       child: Icon(Icons.restaurant,
                           color: Color(0xFF4CAF50), size: 20),
                     ),
-                    title: Text(food['food_name']),
+                    title: Text(food['food_name'], style: const TextStyle(color: Color(0xFF1A1A1A), fontWeight: FontWeight.w500)),
                     subtitle: Text(
                       '${food['calories'].toInt()} kcal · P: ${food['protein']}g · C: ${food['carbs']}g · F: ${food['fat']}g',
-                      style: const TextStyle(fontSize: 12),
+                      style: const TextStyle(fontSize: 12, color: Color(0xFF555555)),
                     ),
                     trailing: IconButton(
                       icon: const Icon(Icons.add_circle,
@@ -263,16 +263,16 @@ class _FoodLogScreenState extends ConsumerState<FoodLogScreen> {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Icon(Icons.no_meals,
-                      size: 48, color: Colors.grey),
+                      size: 48, color: const Color(0xFF9E9E9E)),
                   SizedBox(height: 12),
                   Text(
                     'No food logged today',
-                    style: TextStyle(color: Colors.grey),
+                    style: const TextStyle(color: Color(0xFF757575)),
                   ),
                   Text(
                     'Search above to add meals',
-                    style: TextStyle(
-                        color: Colors.grey, fontSize: 12),
+                    style: const TextStyle(
+                        color: Color(0xFF757575), fontSize: 12),
                   ),
                 ],
               ),
@@ -297,11 +297,11 @@ class _FoodLogScreenState extends ConsumerState<FoodLogScreen> {
                     title: Text(
                       log['food_name'] ?? '',
                       style: const TextStyle(
-                          fontWeight: FontWeight.w600),
+                          fontWeight: FontWeight.w600, color: Color(0xFF1A1A1A)),
                     ),
                     subtitle: Text(
                       '${(log['calories'] ?? 0).toInt()} kcal · ${log['meal_type']}',
-                      style: const TextStyle(fontSize: 12),
+                      style: const TextStyle(fontSize: 12, color: Color(0xFF555555)),
                     ),
                     trailing: IconButton(
                       icon: const Icon(Icons.delete_outline,
