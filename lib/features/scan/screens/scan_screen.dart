@@ -121,7 +121,7 @@ class _ScanScreenState extends State<ScanScreen> {
     return Scaffold(
       backgroundColor: const Color(0xFFF9F9F9),
       appBar: AppBar(
-        title: const Text('Scan Food'),
+        title: const Text('Scan Food', style: TextStyle(color: Color(0xFF1A1A1A), fontWeight: FontWeight.w600, fontSize: 18)),
         backgroundColor: Colors.white,
         elevation: 0,
       ),
@@ -181,7 +181,7 @@ class _ScanScreenState extends State<ScanScreen> {
                       'or upload from gallery',
                       style: TextStyle(
                         fontSize: 13,
-                        color: Colors.grey,
+                        color: const Color(0xFF9E9E9E),
                       ),
                     ),
                   ],
@@ -244,12 +244,13 @@ class _ScanScreenState extends State<ScanScreen> {
                       style: TextStyle(
                         fontWeight: FontWeight.w600,
                         fontSize: 15,
+                        color: const Color(0xFF1A1A1A),
                       ),
                     ),
                     SizedBox(height: 4),
                     Text(
                       'AI is detecting food items',
-                      style: TextStyle(color: Colors.grey, fontSize: 13),
+                      style: TextStyle(color: const Color(0xFF9E9E9E), fontSize: 13),
                     ),
                   ],
                 ),
@@ -297,6 +298,7 @@ class _ScanScreenState extends State<ScanScreen> {
                       style: const TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
+                        color: const Color(0xFF1A1A1A),
                       ),
                     ),
                     const SizedBox(height: 16),
@@ -340,6 +342,7 @@ class _ScanScreenState extends State<ScanScreen> {
                         style: TextStyle(
                           fontWeight: FontWeight.w600,
                           fontSize: 14,
+                          color: const Color(0xFF1A1A1A),
                         ),
                       ),
                       const SizedBox(height: 8),
@@ -361,7 +364,7 @@ class _ScanScreenState extends State<ScanScreen> {
                               Text(
                                 '${item['calories']} kcal',
                                 style: const TextStyle(
-                                  color: Colors.grey,
+                                  color: const Color(0xFF9E9E9E),
                                   fontSize: 13,
                                 ),
                               ),
@@ -382,6 +385,7 @@ class _ScanScreenState extends State<ScanScreen> {
                 style: TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.bold,
+                  color: const Color(0xFF1A1A1A),
                 ),
               ),
               const SizedBox(height: 10),
