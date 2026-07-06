@@ -191,7 +191,7 @@ class _GoalsScreenState extends ConsumerState<GoalsScreen> {
     return Scaffold(
       backgroundColor: const Color(0xFFF9F9F9),
       appBar: AppBar(
-        title: const Text('Goals & Tracking'),
+        title: const Text('Goals & Tracking', style: TextStyle(color: Color(0xFF1A1A1A), fontWeight: FontWeight.w600, fontSize: 18)),
         backgroundColor: Colors.white,
         elevation: 0,
       ),
@@ -209,6 +209,7 @@ class _GoalsScreenState extends ConsumerState<GoalsScreen> {
               style: TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.bold,
+                color: const Color(0xFF1A1A1A),
               ),
             ),
             const SizedBox(height: 12),
@@ -267,6 +268,7 @@ class _GoalsScreenState extends ConsumerState<GoalsScreen> {
               style: TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.bold,
+                color: const Color(0xFF1A1A1A),
               ),
             ),
             const SizedBox(height: 12),
@@ -313,6 +315,7 @@ class _GoalsScreenState extends ConsumerState<GoalsScreen> {
               style: TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.bold,
+                color: const Color(0xFF1A1A1A),
               ),
             ),
             const SizedBox(height: 12),
@@ -354,6 +357,7 @@ class _GoalsScreenState extends ConsumerState<GoalsScreen> {
               style: TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.bold,
+                color: const Color(0xFF1A1A1A),
               ),
             ),
             const SizedBox(height: 12),
@@ -396,6 +400,7 @@ class _GoalsScreenState extends ConsumerState<GoalsScreen> {
                 style: TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.bold,
+                  color: const Color(0xFF1A1A1A),
                 ),
               ),
               const SizedBox(height: 12),
@@ -423,12 +428,13 @@ class _GoalsScreenState extends ConsumerState<GoalsScreen> {
                       title: Text(
                         '${log['weight']} kg',
                         style: const TextStyle(
+                            color: const Color(0xFF1A1A1A),
                             fontWeight: FontWeight.w600),
                       ),
                       trailing: Text(
                         '${date.day}/${date.month}/${date.year}',
                         style: const TextStyle(
-                            color: Colors.grey, fontSize: 12),
+                            color: const Color(0xFF9E9E9E), fontSize: 12),
                       ),
                     );
                   },
@@ -463,6 +469,7 @@ class _GoalField extends StatelessWidget {
             style: const TextStyle(
               fontWeight: FontWeight.w500,
               fontSize: 14,
+              color: Color(0xFF1A1A1A),
             ),
           ),
         ),
@@ -477,7 +484,7 @@ class _GoalField extends StatelessWidget {
                   horizontal: 8, vertical: 8),
               suffixText: unit,
               suffixStyle:
-              const TextStyle(color: Colors.grey, fontSize: 12),
+              const TextStyle(color: const Color(0xFF9E9E9E), fontSize: 12),
             ),
           ),
         ),
