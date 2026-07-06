@@ -14,12 +14,35 @@ class AppTheme {
     colorScheme: ColorScheme.fromSeed(
       seedColor: primary,
       brightness: Brightness.light,
+      onSurface: textPrimary,
+      onBackground: textPrimary,
     ),
     scaffoldBackgroundColor: background,
+
+    // ← This fixes ALL text globally
+    textTheme: const TextTheme(
+      displayLarge: TextStyle(color: textPrimary, fontWeight: FontWeight.bold),
+      displayMedium: TextStyle(color: textPrimary, fontWeight: FontWeight.bold),
+      displaySmall: TextStyle(color: textPrimary, fontWeight: FontWeight.bold),
+      headlineLarge: TextStyle(color: textPrimary, fontWeight: FontWeight.bold),
+      headlineMedium: TextStyle(color: textPrimary, fontWeight: FontWeight.bold),
+      headlineSmall: TextStyle(color: textPrimary, fontWeight: FontWeight.bold),
+      titleLarge: TextStyle(color: textPrimary, fontWeight: FontWeight.bold),
+      titleMedium: TextStyle(color: textPrimary, fontWeight: FontWeight.w600),
+      titleSmall: TextStyle(color: textPrimary, fontWeight: FontWeight.w500),
+      bodyLarge: TextStyle(color: textPrimary),
+      bodyMedium: TextStyle(color: textPrimary),
+      bodySmall: TextStyle(color: textSecondary),
+      labelLarge: TextStyle(color: textPrimary, fontWeight: FontWeight.w600),
+      labelMedium: TextStyle(color: textPrimary),
+      labelSmall: TextStyle(color: textSecondary),
+    ),
+
     appBarTheme: const AppBarTheme(
       backgroundColor: surface,
       elevation: 0,
       centerTitle: true,
+      foregroundColor: textPrimary,
       titleTextStyle: TextStyle(
         color: textPrimary,
         fontSize: 18,
@@ -27,14 +50,7 @@ class AppTheme {
       ),
       iconTheme: IconThemeData(color: textPrimary),
     ),
-    textTheme: const TextTheme(
-      bodyLarge: TextStyle(color: textPrimary),
-      bodyMedium: TextStyle(color: textPrimary),
-      bodySmall: TextStyle(color: textSecondary),
-      titleLarge: TextStyle(color: textPrimary, fontWeight: FontWeight.bold),
-      titleMedium: TextStyle(color: textPrimary, fontWeight: FontWeight.w600),
-      titleSmall: TextStyle(color: textPrimary, fontWeight: FontWeight.w500),
-    ),
+
     elevatedButtonTheme: ElevatedButtonThemeData(
       style: ElevatedButton.styleFrom(
         backgroundColor: primary,
@@ -49,6 +65,7 @@ class AppTheme {
         ),
       ),
     ),
+
     outlinedButtonTheme: OutlinedButtonThemeData(
       style: OutlinedButton.styleFrom(
         foregroundColor: primary,
@@ -59,6 +76,7 @@ class AppTheme {
         ),
       ),
     ),
+
     inputDecorationTheme: InputDecorationTheme(
       filled: true,
       fillColor: Colors.grey[100],
@@ -72,11 +90,14 @@ class AppTheme {
       ),
       hintStyle: const TextStyle(color: Color(0xFF9E9E9E)),
       labelStyle: const TextStyle(color: textPrimary),
+      prefixIconColor: textSecondary,
+      suffixIconColor: textSecondary,
       contentPadding: const EdgeInsets.symmetric(
         horizontal: 16,
         vertical: 14,
       ),
     ),
+
     navigationBarTheme: NavigationBarThemeData(
       backgroundColor: surface,
       indicatorColor: primary.withOpacity(0.15),
@@ -100,6 +121,7 @@ class AppTheme {
         return const IconThemeData(color: textSecondary);
       }),
     ),
+
     cardTheme: CardThemeData(
       color: surface,
       elevation: 0,
@@ -107,9 +129,20 @@ class AppTheme {
         borderRadius: BorderRadius.circular(16),
       ),
     ),
+
+    listTileTheme: const ListTileThemeData(
+      textColor: textPrimary,
+      iconColor: textSecondary,
+    ),
+
     dividerTheme: const DividerThemeData(
       color: Color(0xFFEEEEEE),
       thickness: 1,
+    ),
+
+    sliderTheme: const SliderThemeData(
+      activeTrackColor: primary,
+      thumbColor: primary,
     ),
   );
 
