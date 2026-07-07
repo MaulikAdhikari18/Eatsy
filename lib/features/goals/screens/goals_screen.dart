@@ -6,6 +6,7 @@ import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/utils/calorie_calculator.dart';
 import '../../preferences/controllers/diet_preferences_controller.dart';
+import '../../dashboard/controllers/water_controller.dart';
 
 // Every color below comes from context.appColors (colors.*), same as
 // Dashboard / Scan / Food Log / Barcode. AppTheme is only imported for
@@ -24,6 +25,7 @@ class _GoalsScreenState extends ConsumerState<GoalsScreen> {
   final _carbsController = TextEditingController();
   final _fatController = TextEditingController();
   final _weightGoalController = TextEditingController();
+  final _waterGoalController = TextEditingController();
   final _currentWeightController = TextEditingController();
   final _ageController = TextEditingController();
   final _heightController = TextEditingController();
@@ -69,6 +71,7 @@ class _GoalsScreenState extends ConsumerState<GoalsScreen> {
     _carbsController.dispose();
     _fatController.dispose();
     _weightGoalController.dispose();
+    _waterGoalController.dispose();
     _currentWeightController.dispose();
     _ageController.dispose();
     _heightController.dispose();
@@ -99,6 +102,8 @@ class _GoalsScreenState extends ConsumerState<GoalsScreen> {
             (goals['fat_goal'] ?? 65).toString();
         _weightGoalController.text =
             (goals['weight_goal'] ?? '').toString();
+        _waterGoalController.text =
+            (goals['water_goal_ml'] ?? 2000).toString();
         _ageController.text = (goals['age'] ?? '').toString();
         _heightController.text = (goals['height_cm'] ?? '').toString();
         _selectedGender = goals['gender']?.toString() ?? 'female';
@@ -110,6 +115,7 @@ class _GoalsScreenState extends ConsumerState<GoalsScreen> {
         _proteinController.text = '150';
         _carbsController.text = '250';
         _fatController.text = '65';
+        _waterGoalController.text = '2000';
       }
     } catch (e) {
       debugPrint('Error loading goals: $e');
@@ -168,6 +174,7 @@ class _GoalsScreenState extends ConsumerState<GoalsScreen> {
         'carbs_goal': double.tryParse(_carbsController.text) ?? 250,
         'fat_goal': double.tryParse(_fatController.text) ?? 65,
         'weight_goal': double.tryParse(_weightGoalController.text) ?? 0,
+        'water_goal_ml': int.tryParse(_waterGoalController.text) ?? 2000,
         'age': int.tryParse(_ageController.text),
         'height_cm': double.tryParse(_heightController.text),
         'gender': _selectedGender,
@@ -184,6 +191,7 @@ class _GoalsScreenState extends ConsumerState<GoalsScreen> {
       }
 
       if (mounted) {
+        ref.invalidate(waterSummaryProvider);
         _showSnack('Goals saved successfully!',
             background: context.appColors.labelCard);
       }
@@ -619,6 +627,33 @@ class _GoalsScreenState extends ConsumerState<GoalsScreen> {
                 controller: _weightGoalController,
                 unit: 'kg',
                 accentColor: colors.carbs,
+              ),
+            ),
+
+            const SizedBox(height: 24),
+
+            // Water Goal — same editable-field pattern as Weight Goal
+            // above; feeds the `water_goal_ml` column that the
+            // Dashboard's water card (water_controller.dart) already
+            // reads from, so saving here updates that card immediately.
+            _SectionHeading('Water Goal', colors),
+            const SizedBox(height: 4),
+            Text(
+              'Your daily water target — shown on the Dashboard water card',
+              style: TextStyle(fontSize: 12, color: colors.textMuted),
+            ),
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: colors.surface,
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: _GoalField(
+                label: '💧 Target Water',
+                controller: _waterGoalController,
+                unit: 'ml',
+                accentColor: colors.water,
               ),
             ),
 
