@@ -175,26 +175,24 @@ class _FoodLogScreenState extends ConsumerState<FoodLogScreen> {
 
     return Scaffold(
       backgroundColor: colors.background,
+      // AppBar restored: this screen is reached two ways — as a bottom-nav
+      // tab (not poppable, so no back arrow shows) AND pushed via the
+      // Dashboard's "Search" quick action (poppable, so it does). A bare
+      // AppBar with just a title lets Flutter handle that automatically —
+      // same convention as Goals / Diet Preferences / Barcode.
+      appBar: AppBar(
+        title: const Text('Food Log'),
+      ),
       body: SafeArea(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Header + search + meal-type selector — fixed, matches the
-            // Dashboard's plain (no AppBar) header treatment.
+            // Search + meal-type selector — fixed header block.
             Padding(
               padding: const EdgeInsets.fromLTRB(20, 16, 20, 12),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    'Food Log',
-                    style: TextStyle(
-                      fontSize: 24,
-                      fontWeight: FontWeight.w700,
-                      color: colors.textPrimary,
-                    ),
-                  ),
-                  const SizedBox(height: 16),
                   TextField(
                     controller: _searchController,
                     onChanged: _searchFood,

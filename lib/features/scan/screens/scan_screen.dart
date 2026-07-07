@@ -128,21 +128,21 @@ class _ScanScreenState extends State<ScanScreen> {
 
     return Scaffold(
       backgroundColor: colors.background,
+      // AppBar restored: unlike Meal Plan (tab-only), this screen is
+      // ALWAYS reached via Navigator.push — the bottom-nav "Scan" tap and
+      // the Dashboard's "Scan" quick action both push it rather than
+      // switching tabs. Without an AppBar there's no back button at all.
+      // Same bare-title convention as Goals / Diet Preferences / Barcode.
+      appBar: AppBar(
+        title: const Text('Scan Food'),
+      ),
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                'Scan Food',
-                style: TextStyle(
-                  fontSize: 24,
-                  fontWeight: FontWeight.w700,
-                  color: colors.textPrimary,
-                ),
-              ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 4),
 
               // Image preview or placeholder
               GestureDetector(

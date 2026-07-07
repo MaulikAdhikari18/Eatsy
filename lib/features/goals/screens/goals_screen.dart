@@ -378,7 +378,7 @@ class _GoalsScreenState extends ConsumerState<GoalsScreen> {
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: Icon(Icons.restaurant_menu,
-                          color: colors.labelCard, size: 20),
+                          color: colors.accent, size: 20),
                     ),
                     const SizedBox(width: 14),
                     Expanded(
