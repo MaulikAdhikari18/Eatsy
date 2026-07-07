@@ -7,6 +7,8 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/utils/calorie_calculator.dart';
 import '../../preferences/controllers/diet_preferences_controller.dart';
 import '../../dashboard/controllers/water_controller.dart';
+import '../../../core/settings/unit_preferences_provider.dart';
+import '../../../core/utils/unit_converter.dart';
 
 // Every color below comes from context.appColors (colors.*), same as
 // Dashboard / Scan / Food Log / Barcode. AppTheme is only imported for
@@ -100,10 +102,12 @@ class _GoalsScreenState extends ConsumerState<GoalsScreen> {
             (goals['carbs_goal'] ?? 250).toString();
         _fatController.text =
             (goals['fat_goal'] ?? 65).toString();
-        _weightGoalController.text =
-            (goals['weight_goal'] ?? '').toString();
-        _waterGoalController.text =
-            (goals['water_goal_ml'] ?? 2000).toString();
+        _weightGoalController.text = goals['weight_goal'] != null
+            ? _formatWeightFromKg(
+            (goals['weight_goal'] as num), ref.read(weightUnitProvider))
+            : '';
+        _waterGoalController.text = _formatWaterFromMl(
+            (goals['water_goal_ml'] ?? 2000) as num, ref.read(waterUnitProvider));
         _ageController.text = (goals['age'] ?? '').toString();
         _heightController.text = (goals['height_cm'] ?? '').toString();
         _selectedGender = goals['gender']?.toString() ?? 'female';
@@ -115,7 +119,8 @@ class _GoalsScreenState extends ConsumerState<GoalsScreen> {
         _proteinController.text = '150';
         _carbsController.text = '250';
         _fatController.text = '65';
-        _waterGoalController.text = '2000';
+        _waterGoalController.text =
+            _formatWaterFromMl(2000, ref.read(waterUnitProvider));
       }
     } catch (e) {
       debugPrint('Error loading goals: $e');
@@ -173,8 +178,12 @@ class _GoalsScreenState extends ConsumerState<GoalsScreen> {
         'protein_goal': double.tryParse(_proteinController.text) ?? 150,
         'carbs_goal': double.tryParse(_carbsController.text) ?? 250,
         'fat_goal': double.tryParse(_fatController.text) ?? 65,
-        'weight_goal': double.tryParse(_weightGoalController.text) ?? 0,
-        'water_goal_ml': int.tryParse(_waterGoalController.text) ?? 2000,
+        'weight_goal': _parseWeightToKg(
+            _weightGoalController.text, ref.read(weightUnitProvider)) ??
+            0,
+        'water_goal_ml': _parseWaterToMl(
+            _waterGoalController.text, ref.read(waterUnitProvider)) ??
+            2000,
         'age': int.tryParse(_ageController.text),
         'height_cm': double.tryParse(_heightController.text),
         'gender': _selectedGender,
@@ -215,7 +224,8 @@ class _GoalsScreenState extends ConsumerState<GoalsScreen> {
 
       await supabase.from('weight_logs').insert({
         'user_id': userId,
-        'weight': double.tryParse(_currentWeightController.text) ?? 0,
+        'weight':
+        _parseWeightToKg(_currentWeightController.text, ref.read(weightUnitProvider)) ?? 0,
         'logged_at': DateTime.now().toIso8601String(),
       });
 
@@ -253,7 +263,8 @@ class _GoalsScreenState extends ConsumerState<GoalsScreen> {
     if (_weightLogs.isNotEmpty) {
       currentWeight = (_weightLogs.first['weight'] as num?)?.toDouble();
     }
-    currentWeight ??= double.tryParse(_currentWeightController.text);
+    currentWeight ??=
+        _parseWeightToKg(_currentWeightController.text, ref.read(weightUnitProvider));
 
     if (currentWeight == null) {
       _showSnack('Log your current weight below first',
@@ -295,9 +306,74 @@ class _GoalsScreenState extends ConsumerState<GoalsScreen> {
     }
   }
 
+  // --- Unit conversion helpers -------------------------------------
+  // The `goals`/`weight_logs` tables always store kg and ml — these
+  // helpers are the only place that translates to/from whatever the
+  // user has chosen to display (Settings sheet → Units). Keeping the
+  // conversion in one spot means load/save/history all stay consistent
+  // even as the preference changes mid-session.
+
+  double? _parseWeightToKg(String text, WeightUnit unit) {
+    final value = double.tryParse(text);
+    if (value == null) return null;
+    return unit == WeightUnit.lb ? UnitConverter.lbToKg(value) : value;
+  }
+
+  String _formatWeightFromKg(num kg, WeightUnit unit) {
+    final display =
+    unit == WeightUnit.lb ? UnitConverter.kgToLb(kg.toDouble()) : kg.toDouble();
+    return display.toStringAsFixed(1);
+  }
+
+  int? _parseWaterToMl(String text, WaterUnit unit) {
+    final value = double.tryParse(text);
+    if (value == null) return null;
+    final ml = unit == WaterUnit.liter ? UnitConverter.lToMl(value) : value;
+    return ml.round();
+  }
+
+  String _formatWaterFromMl(num ml, WaterUnit unit) {
+    if (unit == WaterUnit.liter) {
+      return UnitConverter.mlToL(ml).toStringAsFixed(2);
+    }
+    return ml.round().toString();
+  }
+
+  /// Called when the unit toggle is flipped elsewhere (the Settings
+  /// sheet) while this screen is open — reformats whatever's currently
+  /// typed in place (old unit → kg/ml → new unit) instead of losing it
+  /// or leaving it silently mislabeled.
+  void _onWeightUnitChanged(WeightUnit from, WeightUnit to) {
+    for (final controller in [_weightGoalController, _currentWeightController]) {
+      final kg = _parseWeightToKg(controller.text, from);
+      if (kg == null) continue;
+      controller.text = _formatWeightFromKg(kg, to);
+    }
+    if (mounted) setState(() {});
+  }
+
+  void _onWaterUnitChanged(WaterUnit from, WaterUnit to) {
+    final ml = _parseWaterToMl(_waterGoalController.text, from);
+    if (ml == null) return;
+    _waterGoalController.text = _formatWaterFromMl(ml, to);
+  }
+
   @override
   Widget build(BuildContext context) {
     final colors = context.appColors;
+    final weightUnit = ref.watch(weightUnitProvider);
+    final waterUnit = ref.watch(waterUnitProvider);
+
+    ref.listen<WeightUnit>(weightUnitProvider, (previous, next) {
+      if (previous != null && previous != next) {
+        _onWeightUnitChanged(previous, next);
+      }
+    });
+    ref.listen<WaterUnit>(waterUnitProvider, (previous, next) {
+      if (previous != null && previous != next) {
+        _onWaterUnitChanged(previous, next);
+      }
+    });
 
     return Scaffold(
       backgroundColor: colors.background,
@@ -625,7 +701,7 @@ class _GoalsScreenState extends ConsumerState<GoalsScreen> {
               child: _GoalField(
                 label: '🎯 Target Weight',
                 controller: _weightGoalController,
-                unit: 'kg',
+                unit: weightUnit == WeightUnit.lb ? 'lb' : 'kg',
                 accentColor: colors.carbs,
               ),
             ),
@@ -652,7 +728,7 @@ class _GoalsScreenState extends ConsumerState<GoalsScreen> {
               child: _GoalField(
                 label: '💧 Target Water',
                 controller: _waterGoalController,
-                unit: 'ml',
+                unit: waterUnit == WaterUnit.liter ? 'L' : 'ml',
                 accentColor: colors.water,
               ),
             ),
@@ -691,10 +767,11 @@ class _GoalsScreenState extends ConsumerState<GoalsScreen> {
                   Expanded(
                     child: TextField(
                       controller: _currentWeightController,
-                      keyboardType: TextInputType.number,
-                      decoration: const InputDecoration(
-                        hintText: 'Enter weight in kg',
-                        prefixIcon: Icon(Icons.monitor_weight_outlined),
+                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                      decoration: InputDecoration(
+                        hintText:
+                        'Enter weight in ${weightUnit == WeightUnit.lb ? 'lb' : 'kg'}',
+                        prefixIcon: const Icon(Icons.monitor_weight_outlined),
                       ),
                     ),
                   ),
@@ -740,7 +817,8 @@ class _GoalsScreenState extends ConsumerState<GoalsScreen> {
                             color: colors.protein, size: 20),
                       ),
                       title: Text(
-                        '${log['weight']} kg',
+                        '${_formatWeightFromKg((log['weight'] as num? ?? 0), weightUnit)} '
+                            '${weightUnit == WeightUnit.lb ? 'lb' : 'kg'}',
                         style: TextStyle(
                             color: colors.textPrimary,
                             fontWeight: FontWeight.w600),
@@ -850,7 +928,7 @@ class _GoalField extends StatelessWidget {
           width: 80,
           child: TextField(
             controller: controller,
-            keyboardType: TextInputType.number,
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
             textAlign: TextAlign.center,
             style: AppFonts.mono(fontSize: 14, color: colors.textPrimary),
             decoration: InputDecoration(

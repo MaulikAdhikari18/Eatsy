@@ -66,3 +66,13 @@ Future<void> logWaterMl(int amountMl) async {
     'logged_at': DateTime.now().toIso8601String(),
   });
 }
+
+/// Removes water from today's tally by inserting a *negative*-amount
+/// entry rather than deleting a previous row. Same table, same sum
+/// logic in `waterSummaryProvider` — no special-casing needed there —
+/// and it keeps an honest audit trail ("added 500ml, then backed out
+/// 250ml") instead of silently erasing what was actually tapped.
+Future<void> removeWaterMl(int amountMl) async {
+  if (amountMl <= 0) return;
+  await logWaterMl(-amountMl);
+}

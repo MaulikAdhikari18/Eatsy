@@ -13,6 +13,8 @@ import '../../mealplan/screens/meal_plan_screen.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/theme_provider.dart';
+import '../../../core/settings/unit_preferences_provider.dart';
+import '../../../core/utils/unit_converter.dart';
 import '../../../shared/widgets/dotted_leader_row.dart';
 import '../../../shared/widgets/receipt_decorations.dart';
 
@@ -179,6 +181,69 @@ class _HomeTab extends ConsumerWidget {
               },
             ),
             const SizedBox(height: 24),
+            Text(
+              'Units',
+              style: TextStyle(
+                fontWeight: FontWeight.w600,
+                fontSize: 13,
+                color: colors.textSecondary,
+              ),
+            ),
+            const SizedBox(height: 10),
+            Consumer(
+              builder: (context, ref, _) {
+                final weightUnit = ref.watch(weightUnitProvider);
+                return Row(
+                  children: [
+                    _ThemeOption(
+                      icon: Icons.monitor_weight_outlined,
+                      label: 'Weight: kg',
+                      selected: weightUnit == WeightUnit.kg,
+                      onTap: () => ref
+                          .read(weightUnitProvider.notifier)
+                          .setUnit(WeightUnit.kg),
+                    ),
+                    const SizedBox(width: 10),
+                    _ThemeOption(
+                      icon: Icons.monitor_weight_outlined,
+                      label: 'Weight: lb',
+                      selected: weightUnit == WeightUnit.lb,
+                      onTap: () => ref
+                          .read(weightUnitProvider.notifier)
+                          .setUnit(WeightUnit.lb),
+                    ),
+                  ],
+                );
+              },
+            ),
+            const SizedBox(height: 10),
+            Consumer(
+              builder: (context, ref, _) {
+                final waterUnit = ref.watch(waterUnitProvider);
+                return Row(
+                  children: [
+                    _ThemeOption(
+                      icon: Icons.water_drop_outlined,
+                      label: 'Water: ml',
+                      selected: waterUnit == WaterUnit.ml,
+                      onTap: () => ref
+                          .read(waterUnitProvider.notifier)
+                          .setUnit(WaterUnit.ml),
+                    ),
+                    const SizedBox(width: 10),
+                    _ThemeOption(
+                      icon: Icons.water_drop_outlined,
+                      label: 'Water: L',
+                      selected: waterUnit == WaterUnit.liter,
+                      onTap: () => ref
+                          .read(waterUnitProvider.notifier)
+                          .setUnit(WaterUnit.liter),
+                    ),
+                  ],
+                );
+              },
+            ),
+            const SizedBox(height: 24),
             ListTile(
               leading: Icon(Icons.flag_outlined, color: colors.textSecondary),
               title: const Text('Goals & Targets'),
@@ -327,6 +392,17 @@ class _HomeTab extends ConsumerWidget {
                     summary: summary,
                     onAdd: (ml) async {
                       await logWaterMl(ml);
+                      ref.read(waterRefreshProvider.notifier).state++;
+                    },
+                    onRemove: (ml) async {
+                      // Clamp so a removal can never push today's total
+                      // below zero — e.g. tapping "-1L" after only
+                      // logging 250ml just zeroes it out instead of
+                      // going negative.
+                      final amount =
+                      ml > summary.consumedMl ? summary.consumedMl : ml;
+                      if (amount <= 0) return;
+                      await removeWaterMl(amount);
                       ref.read(waterRefreshProvider.notifier).state++;
                     },
                   ),
@@ -534,20 +610,39 @@ class _MacroStat extends StatelessWidget {
 }
 
 /// Water tracking card: today's total against a daily goal, a thin
-/// progress bar, and three quick-add pills — same visual weight as the
-/// macro strip on the nutrition label card above it, just its own
-/// dedicated "water" blue instead of a macro color.
-class _WaterCard extends StatelessWidget {
+/// progress bar, quick-add pills, and a mirrored quick-remove row for
+/// correcting an accidental tap — same visual weight as the macro strip
+/// on the nutrition label card above it, just its own dedicated "water"
+/// blue instead of a macro color. A ConsumerWidget (not Stateless) so
+/// it can watch `waterUnitProvider` and format ml vs. L on its own.
+class _WaterCard extends ConsumerWidget {
   final WaterSummary summary;
   final void Function(int ml) onAdd;
-  const _WaterCard({required this.summary, required this.onAdd});
+  final void Function(int ml) onRemove;
+  const _WaterCard({required this.summary, required this.onAdd, required this.onRemove});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final colors = context.appColors;
+    final unit = ref.watch(waterUnitProvider);
+    final isLiter = unit == WaterUnit.liter;
     final progress = summary.goalMl > 0
         ? (summary.consumedMl / summary.goalMl).clamp(0.0, 1.0)
         : 0.0;
+
+    String totalLabel(int ml) => isLiter
+        ? UnitConverter.mlToL(ml).toStringAsFixed(2)
+        : ml.toString();
+    // "+1L" reads better than "+1000ml" even in ml mode, so only the
+    // 250/500 pills change wording between units — 1000 stays "1L"
+    // either way.
+    String pillLabel(int ml, {required bool isAdd}) {
+      final sign = isAdd ? '+' : '-';
+      if (ml == 1000) return '$sign${'1L'}';
+      final text = isLiter ? UnitConverter.mlToL(ml).toStringAsFixed(2) : '$ml';
+      final suffix = isLiter ? 'L' : 'ml';
+      return '$sign$text$suffix';
+    }
 
     return Container(
       padding: const EdgeInsets.all(16),
@@ -577,7 +672,7 @@ class _WaterCard extends StatelessWidget {
                 ],
               ),
               Text(
-                '${summary.consumedMl} / ${summary.goalMl} ml',
+                '${totalLabel(summary.consumedMl)} / ${totalLabel(summary.goalMl)} ${isLiter ? 'L' : 'ml'}',
                 style: AppFonts.mono(
                   fontSize: 13,
                   fontWeight: FontWeight.w600,
@@ -599,24 +694,64 @@ class _WaterCard extends StatelessWidget {
           const SizedBox(height: 14),
           Row(
             children: [
-              _WaterAddButton(label: '+250ml', color: colors.water, onTap: () => onAdd(250)),
+              _WaterPillButton(
+                label: pillLabel(250, isAdd: true),
+                color: colors.water,
+                onTap: () => onAdd(250),
+              ),
               const SizedBox(width: 8),
-              _WaterAddButton(label: '+500ml', color: colors.water, onTap: () => onAdd(500)),
+              _WaterPillButton(
+                label: pillLabel(500, isAdd: true),
+                color: colors.water,
+                onTap: () => onAdd(500),
+              ),
               const SizedBox(width: 8),
-              _WaterAddButton(label: '+1L', color: colors.water, onTap: () => onAdd(1000)),
+              _WaterPillButton(
+                label: pillLabel(1000, isAdd: true),
+                color: colors.water,
+                onTap: () => onAdd(1000),
+              ),
             ],
           ),
+          // Only show a remove row once there's actually something
+          // logged today — nothing to correct otherwise, and it keeps
+          // the card compact for the common "haven't drunk anything
+          // yet" state.
+          if (summary.consumedMl > 0) ...[
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                _WaterPillButton(
+                  label: pillLabel(250, isAdd: false),
+                  color: colors.fat,
+                  onTap: () => onRemove(250),
+                ),
+                const SizedBox(width: 8),
+                _WaterPillButton(
+                  label: pillLabel(500, isAdd: false),
+                  color: colors.fat,
+                  onTap: () => onRemove(500),
+                ),
+                const SizedBox(width: 8),
+                _WaterPillButton(
+                  label: pillLabel(1000, isAdd: false),
+                  color: colors.fat,
+                  onTap: () => onRemove(1000),
+                ),
+              ],
+            ),
+          ],
         ],
       ),
     );
   }
 }
 
-class _WaterAddButton extends StatelessWidget {
+class _WaterPillButton extends StatelessWidget {
   final String label;
   final Color color;
   final VoidCallback onTap;
-  const _WaterAddButton({required this.label, required this.color, required this.onTap});
+  const _WaterPillButton({required this.label, required this.color, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
