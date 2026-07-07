@@ -5,6 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/utils/calorie_calculator.dart';
 import '../../../shared/widgets/receipt_decorations.dart';
 
 class OnboardingScreen extends ConsumerStatefulWidget {
@@ -23,7 +24,9 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   String _goalType = 'lose';
   double _currentWeight = 70;
   double _targetWeight = 65;
-  int _dailyCalories = 1800;
+  int _age = 25;
+  double _height = 165;
+  String _gender = 'female';
   String _activityLevel = 'moderate';
 
   final List<Map<String, dynamic>> _goalTypes = [
@@ -59,33 +62,25 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
     }
   }
 
-  // Auto-calculate calories based on goal
-  void _updateCalories() {
-    switch (_goalType) {
-      case 'lose':
-        _dailyCalories = 1500;
-        break;
-      case 'maintain':
-        _dailyCalories = 2000;
-        break;
-      case 'gain':
-        _dailyCalories = 2500;
-        break;
-    }
-    switch (_activityLevel) {
-      case 'sedentary':
-        _dailyCalories -= 200;
-        break;
-      case 'active':
-        _dailyCalories += 200;
-        break;
-    }
-  }
-
   Future<void> _saveAndContinue() async {
     setState(() => _isLoading = true);
     try {
-      _updateCalories();
+      // Same BMR (Mifflin-St Jeor) → TDEE → calorie target → macro
+      // pipeline used by Goals screen's "Calculate My Targets" button.
+      // Diet preferences haven't been collected yet at this point in the
+      // flow, so this uses the no-restriction default split — once the
+      // user sets cuisine/diet type/allergies later, they can re-run
+      // "Calculate My Targets" on the Goals screen to refine it further.
+      final targets = CalorieCalculator.calculateFullTargets(
+        weightKg: _currentWeight,
+        heightCm: _height,
+        age: _age,
+        gender: _gender,
+        activityLevel: _activityLevel,
+        goalType: _goalType,
+        dietType: 'no_restriction',
+        medicalConditions: const [],
+      );
 
       final supabase = Supabase.instance.client;
       final userId = supabase.auth.currentUser?.id;
@@ -101,12 +96,9 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
         return;
       }
 
-      // Calculate macros based on calories
-      final protein = (_dailyCalories * 0.30 / 4).roundToDouble();
-      final carbs = (_dailyCalories * 0.45 / 4).roundToDouble();
-      final fat = (_dailyCalories * 0.25 / 9).roundToDouble();
-
-      // Save goals to Supabase
+      // Save goals to Supabase — including age/height/gender/activity
+      // so the Goals screen's Body Profile arrives pre-filled instead
+      // of asking the user to re-enter what they just told onboarding.
       final existing = await supabase
           .from('goals')
           .select()
@@ -115,11 +107,15 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
 
       final data = {
         'user_id': userId,
-        'daily_calories': _dailyCalories,
-        'protein_goal': protein,
-        'carbs_goal': carbs,
-        'fat_goal': fat,
+        'daily_calories': targets.calories,
+        'protein_goal': targets.proteinG,
+        'carbs_goal': targets.carbsG,
+        'fat_goal': targets.fatG,
         'weight_goal': _targetWeight,
+        'age': _age,
+        'height_cm': _height,
+        'gender': _gender,
+        'activity_level': _activityLevel,
       };
 
       if (existing != null) {
@@ -160,7 +156,6 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
       body: SafeArea(
         child: Column(
           children: [
-            // Progress indicator
             Padding(
               padding: const EdgeInsets.fromLTRB(20, 16, 20, 4),
               child: Column(
@@ -211,7 +206,6 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
               ),
             ),
 
-            // Pages
             Expanded(
               child: PageView(
                 controller: _pageController,
@@ -224,26 +218,28 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                     goalTypes: _goalTypes,
                     onSelected: (key) => setState(() => _goalType = key),
                   ),
-                  _WeightPage(
+                  _BodyDetailsPage(
                     currentWeight: _currentWeight,
                     targetWeight: _targetWeight,
                     goalType: _goalType,
-                    onCurrentChanged: (v) =>
-                        setState(() => _currentWeight = v),
-                    onTargetChanged: (v) =>
-                        setState(() => _targetWeight = v),
+                    age: _age,
+                    height: _height,
+                    gender: _gender,
+                    onCurrentWeightChanged: (v) => setState(() => _currentWeight = v),
+                    onTargetWeightChanged: (v) => setState(() => _targetWeight = v),
+                    onAgeChanged: (v) => setState(() => _age = v),
+                    onHeightChanged: (v) => setState(() => _height = v),
+                    onGenderChanged: (v) => setState(() => _gender = v),
                   ),
                   _ActivityPage(
                     selectedLevel: _activityLevel,
                     activityLevels: _activityLevels,
-                    onSelected: (key) =>
-                        setState(() => _activityLevel = key),
+                    onSelected: (key) => setState(() => _activityLevel = key),
                   ),
                 ],
               ),
             ),
 
-            // Next button
             Padding(
               padding: const EdgeInsets.all(20),
               child: ElevatedButton(
@@ -281,8 +277,6 @@ class _WelcomePage extends StatelessWidget {
       padding: const EdgeInsets.all(24),
       child: Column(
         children: [
-          // Brand hero — same barcode-strip / zigzag-tear card used on
-          // Login, so onboarding opens with the same visual signature.
           ClipRRect(
             borderRadius: const BorderRadius.vertical(top: Radius.circular(18)),
             child: Container(
@@ -300,27 +294,18 @@ class _WelcomePage extends StatelessWidget {
                       color: colors.accent,
                       borderRadius: BorderRadius.circular(16),
                     ),
-                    child: Icon(Icons.restaurant,
-                        size: 32, color: colors.accentOnColor),
+                    child: Icon(Icons.restaurant, size: 32, color: colors.accentOnColor),
                   ),
                   const SizedBox(height: 14),
                   const Text(
                     'Welcome to Eatsy',
-                    style: TextStyle(
-                      fontSize: 24,
-                      fontWeight: FontWeight.w800,
-                      color: Colors.white,
-                    ),
+                    style: TextStyle(fontSize: 24, fontWeight: FontWeight.w800, color: Colors.white),
                     textAlign: TextAlign.center,
                   ),
                   const SizedBox(height: 6),
                   Text(
                     'YOUR NUTRITION JOURNEY STARTS HERE',
-                    style: AppFonts.mono(
-                      fontSize: 10,
-                      color: colors.accent,
-                      letterSpacing: 1.2,
-                    ),
+                    style: AppFonts.mono(fontSize: 10, color: colors.accent, letterSpacing: 1.2),
                     textAlign: TextAlign.center,
                   ),
                 ],
@@ -328,21 +313,13 @@ class _WelcomePage extends StatelessWidget {
             ),
           ),
           ZigzagEdge(color: colors.labelCard),
-
           const SizedBox(height: 28),
-
           Text(
             "Let's set up your personal nutrition plan in just a few steps.",
-            style: TextStyle(
-              fontSize: 15,
-              color: colors.textSecondary,
-              height: 1.5,
-            ),
+            style: TextStyle(fontSize: 15, color: colors.textSecondary, height: 1.5),
             textAlign: TextAlign.center,
           ),
-
           const SizedBox(height: 28),
-
           const _FeatureRow(icon: Icons.camera_alt, text: 'Scan food with AI camera'),
           const SizedBox(height: 12),
           const _FeatureRow(icon: Icons.pie_chart, text: 'Track calories & macros daily'),
@@ -377,32 +354,19 @@ class _FeatureRow extends StatelessWidget {
               color: colors.accent.withOpacity(0.15),
               borderRadius: BorderRadius.circular(12),
             ),
-            // FIX: was `colors.labelCard` — a background color, not a
-            // foreground/icon color. In dark mode labelCard (#16332C)
-            // sits at nearly the same luminance as the tinted accent
-            // chip behind it, making the icon almost invisible.
-            // textPrimary is built to guarantee contrast on any surface
-            // in both themes, which is what this needs.
             child: Icon(icon, color: colors.textPrimary, size: 20),
           ),
           const SizedBox(width: 14),
           Expanded(
             child: Text(
               text,
-              style: TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.w500,
-                color: colors.textPrimary,
-              ),
+              style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500, color: colors.textPrimary),
             ),
           ),
           Container(
             width: 22,
             height: 22,
-            decoration: BoxDecoration(
-              color: colors.accent,
-              shape: BoxShape.circle,
-            ),
+            decoration: BoxDecoration(color: colors.accent, shape: BoxShape.circle),
             child: Icon(Icons.check, size: 14, color: colors.accentOnColor),
           ),
         ],
@@ -449,9 +413,7 @@ class _GoalTypePage extends StatelessWidget {
                 margin: const EdgeInsets.only(bottom: 16),
                 padding: const EdgeInsets.all(20),
                 decoration: BoxDecoration(
-                  color: isSelected
-                      ? colors.accent.withOpacity(0.10)
-                      : colors.surface,
+                  color: isSelected ? colors.accent.withOpacity(0.10) : colors.surface,
                   borderRadius: BorderRadius.circular(16),
                   border: Border.all(
                     color: isSelected ? colors.accent : colors.divider,
@@ -469,8 +431,7 @@ class _GoalTypePage extends StatelessWidget {
                           Text(
                             goal['label'],
                             style: TextStyle(
-                              fontWeight:
-                              isSelected ? FontWeight.w800 : FontWeight.w700,
+                              fontWeight: isSelected ? FontWeight.w800 : FontWeight.w700,
                               fontSize: 16,
                               color: colors.textPrimary,
                             ),
@@ -478,10 +439,7 @@ class _GoalTypePage extends StatelessWidget {
                           const SizedBox(height: 4),
                           Text(
                             goal['desc'],
-                            style: TextStyle(
-                              color: colors.textSecondary,
-                              fontSize: 13,
-                            ),
+                            style: TextStyle(color: colors.textSecondary, fontSize: 13),
                           ),
                         ],
                       ),
@@ -490,12 +448,8 @@ class _GoalTypePage extends StatelessWidget {
                       Container(
                         width: 26,
                         height: 26,
-                        decoration: BoxDecoration(
-                          color: colors.accent,
-                          shape: BoxShape.circle,
-                        ),
-                        child: Icon(Icons.check,
-                            size: 16, color: colors.accentOnColor),
+                        decoration: BoxDecoration(color: colors.accent, shape: BoxShape.circle),
+                        child: Icon(Icons.check, size: 16, color: colors.accentOnColor),
                       ),
                   ],
                 ),
@@ -508,21 +462,43 @@ class _GoalTypePage extends StatelessWidget {
   }
 }
 
-// Page 3 — Weight
-class _WeightPage extends StatelessWidget {
+// Page 3 — Body Details (weight + age + height + gender). Everything
+// collected here feeds directly into CalorieCalculator.calculateFullTargets
+// — the exact same function Goals screen's "Calculate My Targets" uses —
+// so the number a user sees at signup matches what they'd get recalculating
+// later, instead of two different formulas producing two different answers.
+class _BodyDetailsPage extends StatelessWidget {
   final double currentWeight;
   final double targetWeight;
   final String goalType;
-  final Function(double) onCurrentChanged;
-  final Function(double) onTargetChanged;
+  final int age;
+  final double height;
+  final String gender;
+  final Function(double) onCurrentWeightChanged;
+  final Function(double) onTargetWeightChanged;
+  final Function(int) onAgeChanged;
+  final Function(double) onHeightChanged;
+  final Function(String) onGenderChanged;
 
-  const _WeightPage({
+  const _BodyDetailsPage({
     required this.currentWeight,
     required this.targetWeight,
     required this.goalType,
-    required this.onCurrentChanged,
-    required this.onTargetChanged,
+    required this.age,
+    required this.height,
+    required this.gender,
+    required this.onCurrentWeightChanged,
+    required this.onTargetWeightChanged,
+    required this.onAgeChanged,
+    required this.onHeightChanged,
+    required this.onGenderChanged,
   });
+
+  static const _genders = [
+    {'key': 'female', 'label': 'Female'},
+    {'key': 'male', 'label': 'Male'},
+    {'key': 'other', 'label': 'Other'},
+  ];
 
   @override
   Widget build(BuildContext context) {
@@ -533,26 +509,26 @@ class _WeightPage extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'Your weight',
+            'About you',
             style: TextStyle(fontSize: 26, fontWeight: FontWeight.w800, color: colors.textPrimary),
           ),
           const SizedBox(height: 8),
           Text(
-            'This helps us calculate your personalized plan.',
+            'This helps us calculate your personalized calorie and macro targets.',
             style: TextStyle(color: colors.textSecondary, fontSize: 14),
           ),
-          const SizedBox(height: 32),
+          const SizedBox(height: 28),
 
           _WeightCard(
             label: 'CURRENT WEIGHT',
             value: currentWeight,
             unit: 'kg',
-            onChanged: onCurrentChanged,
+            onChanged: onCurrentWeightChanged,
             min: 30,
             max: 200,
             color: colors.protein,
           ),
-          const SizedBox(height: 20),
+          const SizedBox(height: 16),
 
           _WeightCard(
             label: goalType == 'lose'
@@ -562,10 +538,77 @@ class _WeightPage extends StatelessWidget {
                 : 'MAINTAIN WEIGHT',
             value: targetWeight,
             unit: 'kg',
-            onChanged: onTargetChanged,
+            onChanged: onTargetWeightChanged,
             min: 30,
             max: 200,
             color: colors.carbs,
+          ),
+
+          const SizedBox(height: 20),
+
+          Row(
+            children: [
+              Expanded(
+                child: _StepperCard(
+                  label: 'AGE',
+                  value: age.toDouble(),
+                  unit: 'yrs',
+                  step: 1,
+                  min: 13,
+                  max: 90,
+                  decimals: 0,
+                  color: colors.fat,
+                  onChanged: (v) => onAgeChanged(v.round()),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: _StepperCard(
+                  label: 'HEIGHT',
+                  value: height,
+                  unit: 'cm',
+                  step: 1,
+                  min: 120,
+                  max: 220,
+                  decimals: 0,
+                  color: colors.dinner,
+                  onChanged: onHeightChanged,
+                ),
+              ),
+            ],
+          ),
+
+          const SizedBox(height: 20),
+
+          Text('GENDER',
+              style: AppFonts.mono(fontSize: 11, color: colors.textSecondary, letterSpacing: 1)),
+          const SizedBox(height: 8),
+          Row(
+            children: _genders.map((g) {
+              final isSelected = gender == g['key'];
+              return Expanded(
+                child: GestureDetector(
+                  onTap: () => onGenderChanged(g['key']!),
+                  child: Container(
+                    margin: const EdgeInsets.only(right: 8),
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    decoration: BoxDecoration(
+                      color: isSelected ? colors.labelCard : colors.surfaceVariant,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Text(
+                      g['label']!,
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        color: isSelected ? Colors.white : colors.textSecondary,
+                      ),
+                    ),
+                  ),
+                ),
+              );
+            }).toList(),
           ),
         ],
       ),
@@ -596,7 +639,7 @@ class _WeightCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final colors = context.appColors;
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
         color: colors.surface,
         borderRadius: BorderRadius.circular(16),
@@ -607,14 +650,9 @@ class _WeightCard extends StatelessWidget {
         children: [
           Text(
             label,
-            style: AppFonts.mono(
-              fontSize: 11,
-              fontWeight: FontWeight.w600,
-              color: color,
-              letterSpacing: 0.8,
-            ),
+            style: AppFonts.mono(fontSize: 11, fontWeight: FontWeight.w600, color: color, letterSpacing: 0.8),
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 10),
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
@@ -624,25 +662,21 @@ class _WeightCard extends StatelessWidget {
                 },
                 icon: const Icon(Icons.remove_circle_outline),
                 color: color,
-                iconSize: 32,
+                iconSize: 28,
               ),
-              const SizedBox(width: 16),
+              const SizedBox(width: 12),
               Text(
                 '${value.toStringAsFixed(1)} $unit',
-                style: AppFonts.mono(
-                  fontSize: 26,
-                  fontWeight: FontWeight.w700,
-                  color: color,
-                ),
+                style: AppFonts.mono(fontSize: 24, fontWeight: FontWeight.w700, color: color),
               ),
-              const SizedBox(width: 16),
+              const SizedBox(width: 12),
               IconButton(
                 onPressed: () {
                   if (value < max) onChanged(value + 0.5);
                 },
                 icon: const Icon(Icons.add_circle_outline),
                 color: color,
-                iconSize: 32,
+                iconSize: 28,
               ),
             ],
           ),
@@ -653,6 +687,79 @@ class _WeightCard extends StatelessWidget {
             activeColor: color,
             inactiveColor: color.withOpacity(0.2),
             onChanged: onChanged,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Compact +/- stepper card used for Age and Height — same visual
+/// language as _WeightCard but without the slider, since a 1-unit
+/// step doesn't need one.
+class _StepperCard extends StatelessWidget {
+  final String label;
+  final double value;
+  final String unit;
+  final double step;
+  final double min;
+  final double max;
+  final int decimals;
+  final Color color;
+  final Function(double) onChanged;
+
+  const _StepperCard({
+    required this.label,
+    required this.value,
+    required this.unit,
+    required this.step,
+    required this.min,
+    required this.max,
+    required this.decimals,
+    required this.color,
+    required this.onChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.appColors;
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 12),
+      decoration: BoxDecoration(
+        color: colors.surface,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: color.withOpacity(0.35)),
+      ),
+      child: Column(
+        children: [
+          Text(
+            label,
+            style: AppFonts.mono(fontSize: 10, fontWeight: FontWeight.w600, color: color, letterSpacing: 0.8),
+          ),
+          const SizedBox(height: 8),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              GestureDetector(
+                onTap: () {
+                  if (value > min) onChanged(value - step);
+                },
+                child: Icon(Icons.remove_circle_outline, color: color, size: 22),
+              ),
+              Expanded(
+                child: Text(
+                  '${value.toStringAsFixed(decimals)} $unit',
+                  textAlign: TextAlign.center,
+                  style: AppFonts.mono(fontSize: 16, fontWeight: FontWeight.w700, color: color),
+                ),
+              ),
+              GestureDetector(
+                onTap: () {
+                  if (value < max) onChanged(value + step);
+                },
+                child: Icon(Icons.add_circle_outline, color: color, size: 22),
+              ),
+            ],
           ),
         ],
       ),
@@ -698,9 +805,7 @@ class _ActivityPage extends StatelessWidget {
                 margin: const EdgeInsets.only(bottom: 12),
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: isSelected
-                      ? colors.accent.withOpacity(0.10)
-                      : colors.surface,
+                  color: isSelected ? colors.accent.withOpacity(0.10) : colors.surface,
                   borderRadius: BorderRadius.circular(16),
                   border: Border.all(
                     color: isSelected ? colors.accent : colors.divider,
@@ -709,10 +814,7 @@ class _ActivityPage extends StatelessWidget {
                 ),
                 child: Row(
                   children: [
-                    Text(
-                      level['icon'],
-                      style: const TextStyle(fontSize: 28),
-                    ),
+                    Text(level['icon'], style: const TextStyle(fontSize: 28)),
                     const SizedBox(width: 16),
                     Expanded(
                       child: Column(
@@ -721,18 +823,14 @@ class _ActivityPage extends StatelessWidget {
                           Text(
                             level['label'],
                             style: TextStyle(
-                              fontWeight:
-                              isSelected ? FontWeight.w800 : FontWeight.w700,
+                              fontWeight: isSelected ? FontWeight.w800 : FontWeight.w700,
                               fontSize: 15,
                               color: colors.textPrimary,
                             ),
                           ),
                           Text(
                             level['desc'],
-                            style: TextStyle(
-                              color: colors.textSecondary,
-                              fontSize: 12,
-                            ),
+                            style: TextStyle(color: colors.textSecondary, fontSize: 12),
                           ),
                         ],
                       ),
@@ -741,12 +839,8 @@ class _ActivityPage extends StatelessWidget {
                       Container(
                         width: 22,
                         height: 22,
-                        decoration: BoxDecoration(
-                          color: colors.accent,
-                          shape: BoxShape.circle,
-                        ),
-                        child: Icon(Icons.check,
-                            size: 14, color: colors.accentOnColor),
+                        decoration: BoxDecoration(color: colors.accent, shape: BoxShape.circle),
+                        child: Icon(Icons.check, size: 14, color: colors.accentOnColor),
                       ),
                   ],
                 ),

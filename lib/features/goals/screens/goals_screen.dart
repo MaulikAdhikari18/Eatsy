@@ -577,7 +577,6 @@ class _GoalsScreenState extends ConsumerState<GoalsScreen> {
                     label: '🔥 Daily Calories',
                     controller: _calorieController,
                     unit: 'kcal',
-                    accentColor: colors.accent,
                   ),
                   Divider(height: 24, color: colors.divider),
                   _GoalField(
