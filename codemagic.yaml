@@ -9,6 +9,6 @@ workflows:
       - name: Get Flutter packages
         script: flutter packages pub get
       - name: Build iOS (Simulator, no signing)
-        script: flutter build ios --simulator --release
+        script: flutter build ios --simulator --debug
     artifacts:
       - build/ios/iphonesimulator/*.app
