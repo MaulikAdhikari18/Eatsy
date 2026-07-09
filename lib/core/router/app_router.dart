@@ -7,6 +7,7 @@ import '../../features/auth/screens/login_screen.dart';
 import '../../features/auth/screens/signup_screen.dart';
 import '../../features/auth/screens/onboarding_screen.dart';
 import '../../features/dashboard/screens/dashboard_screen.dart';
+import '../../features/preferences/screens/diet_preferences_screen.dart';
 
 
 final appRouterProvider = Provider<GoRouter>((ref) {
@@ -32,6 +33,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/onboarding',
         builder: (context, state) => const OnboardingScreen(),
+      ),
+      GoRoute(
+        path: '/diet-preferences',
+        builder: (context, state) => const DietPreferencesScreen(),
       ),
     ],
   );
