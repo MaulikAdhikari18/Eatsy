@@ -3,7 +3,8 @@ import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../core/services/fatsecret_service.dart';
 import 'package:image_picker/image_picker.dart';
-import 'dart:io';
+import '../../../core/theme/app_theme.dart';
+import '../../../core/theme/app_colors.dart';
 
 class BarcodeScreen extends StatefulWidget {
   const BarcodeScreen({super.key});
@@ -101,9 +102,11 @@ class _BarcodeScreenState extends State<BarcodeScreen> {
   }
 
   void _showFoodResult(Map<String, dynamic> food) {
+    final colors = context.appColors;
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
+      backgroundColor: colors.surface,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
@@ -119,7 +122,7 @@ class _BarcodeScreenState extends State<BarcodeScreen> {
                 width: 40,
                 height: 4,
                 decoration: BoxDecoration(
-                  color: Colors.grey[300],
+                  color: colors.divider,
                   borderRadius: BorderRadius.circular(2),
                 ),
               ),
@@ -129,9 +132,10 @@ class _BarcodeScreenState extends State<BarcodeScreen> {
             // Food name
             Text(
               food['food_name'],
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 20,
                 fontWeight: FontWeight.bold,
+                color: colors.textPrimary,
               ),
             ),
             const SizedBox(height: 16),
@@ -140,7 +144,7 @@ class _BarcodeScreenState extends State<BarcodeScreen> {
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: const Color(0xFFF9F9F9),
+                color: colors.surfaceVariant,
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Row(
@@ -150,7 +154,7 @@ class _BarcodeScreenState extends State<BarcodeScreen> {
                     label: 'Calories',
                     value: '${food['calories'].toInt()}',
                     unit: 'kcal',
-                    color: const Color(0xFF4CAF50),
+                    color: AppTheme.primary,
                   ),
                   _NutritionBadge(
                     label: 'Protein',
@@ -176,9 +180,9 @@ class _BarcodeScreenState extends State<BarcodeScreen> {
             const SizedBox(height: 20),
 
             // Meal type selector
-            const Text(
+            Text(
               'Add to meal',
-              style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
+              style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14, color: colors.textPrimary),
             ),
             const SizedBox(height: 10),
             SingleChildScrollView(
@@ -196,15 +200,15 @@ class _BarcodeScreenState extends State<BarcodeScreen> {
                       ),
                       decoration: BoxDecoration(
                         color: isSelected
-                            ? const Color(0xFF4CAF50)
-                            : Colors.grey[100],
+                            ? AppTheme.primary
+                            : colors.surfaceVariant,
                         borderRadius: BorderRadius.circular(20),
                       ),
                       child: Text(
                         meal[0].toUpperCase() + meal.substring(1),
                         style: TextStyle(
                           color:
-                          isSelected ? Colors.white : Colors.grey[600],
+                          isSelected ? Colors.white : colors.textSecondary,
                           fontWeight: FontWeight.w500,
                           fontSize: 13,
                         ),
@@ -274,7 +278,7 @@ class _BarcodeScreenState extends State<BarcodeScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('${food['food_name']} added!'),
-            backgroundColor: const Color(0xFF4CAF50),
+            backgroundColor: AppTheme.primary,
           ),
         );
       }
@@ -291,6 +295,9 @@ class _BarcodeScreenState extends State<BarcodeScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // Intentionally kept black regardless of theme — this is a camera
+    // viewfinder screen, not a content screen, and a black background
+    // is standard/expected UX for scanner overlays in both light and dark mode.
     return Scaffold(
       backgroundColor: Colors.black,
       appBar: AppBar(
@@ -331,7 +338,7 @@ class _BarcodeScreenState extends State<BarcodeScreen> {
                   height: 260,
                   decoration: BoxDecoration(
                     border: Border.all(
-                      color: const Color(0xFF4CAF50),
+                      color: AppTheme.primary,
                       width: 3,
                     ),
                     borderRadius: BorderRadius.circular(16),
@@ -401,12 +408,13 @@ class _NutritionBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.appColors;
     return Column(
       children: [
         Text(
           label,
           style: TextStyle(
-            color: Colors.grey[600],
+            color: colors.textSecondary,
             fontSize: 11,
           ),
         ),
@@ -422,7 +430,7 @@ class _NutritionBadge extends StatelessWidget {
         Text(
           unit,
           style: TextStyle(
-            color: Colors.grey[500],
+            color: colors.textMuted,
             fontSize: 11,
           ),
         ),
