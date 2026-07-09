@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../core/theme/app_theme.dart';
+import '../../../core/theme/app_colors.dart';
 
 class GoalsScreen extends ConsumerStatefulWidget {
   const GoalsScreen({super.key});
@@ -138,7 +140,7 @@ class _GoalsScreenState extends ConsumerState<GoalsScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('Goals saved successfully!'),
-            backgroundColor: Color(0xFF4CAF50),
+            backgroundColor: AppTheme.primary,
           ),
         );
       }
@@ -173,7 +175,7 @@ class _GoalsScreenState extends ConsumerState<GoalsScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('Weight logged!'),
-            backgroundColor: Color(0xFF4CAF50),
+            backgroundColor: AppTheme.primary,
           ),
         );
       }
@@ -188,28 +190,31 @@ class _GoalsScreenState extends ConsumerState<GoalsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.appColors;
+
     return Scaffold(
-      backgroundColor: const Color(0xFFF9F9F9),
+      backgroundColor: colors.background,
       appBar: AppBar(
-        title: const Text('Goals & Tracking', style: TextStyle(color: Color(0xFF1A1A1A), fontWeight: FontWeight.w600, fontSize: 18)),
-        backgroundColor: Colors.white,
+        title: Text('Goals & Tracking',
+            style: TextStyle(color: colors.textPrimary, fontWeight: FontWeight.w600, fontSize: 18)),
+        backgroundColor: colors.surface,
         elevation: 0,
       ),
       body: _isLoading
           ? const Center(
-          child: CircularProgressIndicator(color: Color(0xFF4CAF50)))
+          child: CircularProgressIndicator(color: AppTheme.primary))
           : SingleChildScrollView(
         padding: const EdgeInsets.all(20),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // Goal type selector
-            const Text(
+            Text(
               'My Goal',
               style: TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.bold,
-                color: const Color(0xFF1A1A1A),
+                color: colors.textPrimary,
               ),
             ),
             const SizedBox(height: 12),
@@ -226,13 +231,13 @@ class _GoalsScreenState extends ConsumerState<GoalsScreen> {
                           vertical: 12),
                       decoration: BoxDecoration(
                         color: isSelected
-                            ? const Color(0xFF4CAF50)
-                            : Colors.white,
+                            ? AppTheme.primary
+                            : colors.surface,
                         borderRadius: BorderRadius.circular(12),
                         border: Border.all(
                           color: isSelected
-                              ? const Color(0xFF4CAF50)
-                              : Colors.grey[200]!,
+                              ? AppTheme.primary
+                              : colors.divider,
                         ),
                       ),
                       child: Column(
@@ -246,7 +251,7 @@ class _GoalsScreenState extends ConsumerState<GoalsScreen> {
                             style: TextStyle(
                               color: isSelected
                                   ? Colors.white
-                                  : Colors.grey[700],
+                                  : colors.textSecondary,
                               fontSize: 11,
                               fontWeight: FontWeight.w500,
                             ),
@@ -263,19 +268,19 @@ class _GoalsScreenState extends ConsumerState<GoalsScreen> {
             const SizedBox(height: 24),
 
             // Calorie & Macro Goals
-            const Text(
+            Text(
               'Daily Targets',
               style: TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.bold,
-                color: const Color(0xFF1A1A1A),
+                color: colors.textPrimary,
               ),
             ),
             const SizedBox(height: 12),
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: colors.surface,
                 borderRadius: BorderRadius.circular(16),
               ),
               child: Column(
@@ -285,19 +290,19 @@ class _GoalsScreenState extends ConsumerState<GoalsScreen> {
                     controller: _calorieController,
                     unit: 'kcal',
                   ),
-                  const Divider(height: 24),
+                  Divider(height: 24, color: colors.divider),
                   _GoalField(
                     label: '🥩 Protein',
                     controller: _proteinController,
                     unit: 'g',
                   ),
-                  const Divider(height: 24),
+                  Divider(height: 24, color: colors.divider),
                   _GoalField(
                     label: '🌾 Carbohydrates',
                     controller: _carbsController,
                     unit: 'g',
                   ),
-                  const Divider(height: 24),
+                  Divider(height: 24, color: colors.divider),
                   _GoalField(
                     label: '🥑 Fat',
                     controller: _fatController,
@@ -310,19 +315,19 @@ class _GoalsScreenState extends ConsumerState<GoalsScreen> {
             const SizedBox(height: 24),
 
             // Weight Goal
-            const Text(
+            Text(
               'Weight Goal',
               style: TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.bold,
-                color: const Color(0xFF1A1A1A),
+                color: colors.textPrimary,
               ),
             ),
             const SizedBox(height: 12),
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: colors.surface,
                 borderRadius: BorderRadius.circular(16),
               ),
               child: _GoalField(
@@ -352,19 +357,19 @@ class _GoalsScreenState extends ConsumerState<GoalsScreen> {
             const SizedBox(height: 24),
 
             // Log weight
-            const Text(
+            Text(
               'Log Today\'s Weight',
               style: TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.bold,
-                color: const Color(0xFF1A1A1A),
+                color: colors.textPrimary,
               ),
             ),
             const SizedBox(height: 12),
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: colors.surface,
                 borderRadius: BorderRadius.circular(16),
               ),
               child: Row(
@@ -395,18 +400,18 @@ class _GoalsScreenState extends ConsumerState<GoalsScreen> {
 
             // Weight history
             if (_weightLogs.isNotEmpty) ...[
-              const Text(
+              Text(
                 'Weight History',
                 style: TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.bold,
-                  color: const Color(0xFF1A1A1A),
+                  color: colors.textPrimary,
                 ),
               ),
               const SizedBox(height: 12),
               Container(
                 decoration: BoxDecoration(
-                  color: Colors.white,
+                  color: colors.surface,
                   borderRadius: BorderRadius.circular(16),
                 ),
                 child: ListView.separated(
@@ -414,27 +419,27 @@ class _GoalsScreenState extends ConsumerState<GoalsScreen> {
                   physics: const NeverScrollableScrollPhysics(),
                   itemCount: _weightLogs.length,
                   separatorBuilder: (_, __) =>
-                  const Divider(height: 1),
+                      Divider(height: 1, color: colors.divider),
                   itemBuilder: (context, index) {
                     final log = _weightLogs[index];
                     final date = DateTime.parse(
                         log['logged_at'].toString());
                     return ListTile(
-                      leading: const CircleAvatar(
-                        backgroundColor: Color(0xFFE8F5E9),
-                        child: Icon(Icons.monitor_weight,
-                            color: Color(0xFF4CAF50), size: 20),
+                      leading: CircleAvatar(
+                        backgroundColor: AppTheme.primary.withOpacity(0.12),
+                        child: const Icon(Icons.monitor_weight,
+                            color: AppTheme.primary, size: 20),
                       ),
                       title: Text(
                         '${log['weight']} kg',
-                        style: const TextStyle(
-                            color: const Color(0xFF1A1A1A),
+                        style: TextStyle(
+                            color: colors.textPrimary,
                             fontWeight: FontWeight.w600),
                       ),
                       trailing: Text(
                         '${date.day}/${date.month}/${date.year}',
-                        style: const TextStyle(
-                            color: const Color(0xFF9E9E9E), fontSize: 12),
+                        style: TextStyle(
+                            color: colors.textMuted, fontSize: 12),
                       ),
                     );
                   },
@@ -461,15 +466,16 @@ class _GoalField extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.appColors;
     return Row(
       children: [
         Expanded(
           child: Text(
             label,
-            style: const TextStyle(
+            style: TextStyle(
               fontWeight: FontWeight.w500,
               fontSize: 14,
-              color: Color(0xFF1A1A1A),
+              color: colors.textPrimary,
             ),
           ),
         ),
@@ -483,8 +489,7 @@ class _GoalField extends StatelessWidget {
               contentPadding: const EdgeInsets.symmetric(
                   horizontal: 8, vertical: 8),
               suffixText: unit,
-              suffixStyle:
-              const TextStyle(color: const Color(0xFF9E9E9E), fontSize: 12),
+              suffixStyle: TextStyle(color: colors.textMuted, fontSize: 12),
             ),
           ),
         ),
