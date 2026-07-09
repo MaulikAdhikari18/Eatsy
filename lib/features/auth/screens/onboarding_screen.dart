@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../../core/theme/app_theme.dart';
+import '../../../core/theme/app_colors.dart';
 
 class OnboardingScreen extends ConsumerStatefulWidget {
   const OnboardingScreen({super.key});
@@ -37,7 +39,6 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   ];
 
   void _nextPage() {
-    debugPrint('_nextPage tapped, currentPage=$_currentPage, isLoading=$_isLoading');
     if (_currentPage < 3) {
       _pageController.nextPage(
         duration: const Duration(milliseconds: 300),
@@ -81,7 +82,6 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   }
 
   Future<void> _saveAndContinue() async {
-    debugPrint('_saveAndContinue started');
     setState(() => _isLoading = true);
     try {
       _updateCalories();
@@ -152,8 +152,10 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.appColors;
+
     return Scaffold(
-      backgroundColor: const Color(0xFFF9F9F9),
+      backgroundColor: colors.background,
       body: SafeArea(
         child: Column(
           children: [
@@ -170,8 +172,8 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                           height: 4,
                           decoration: BoxDecoration(
                             color: index <= _currentPage
-                                ? const Color(0xFF4CAF50)
-                                : Colors.grey[200],
+                                ? AppTheme.primary
+                                : colors.divider,
                             borderRadius: BorderRadius.circular(2),
                           ),
                         ),
@@ -184,18 +186,18 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                     children: [
                       Text(
                         'Step ${_currentPage + 1} of 4',
-                        style: const TextStyle(
-                          color: Colors.grey,
+                        style: TextStyle(
+                          color: colors.textSecondary,
                           fontSize: 12,
                         ),
                       ),
                       if (_currentPage > 0)
                         GestureDetector(
                           onTap: _previousPage,
-                          child: const Text(
+                          child: Text(
                             'Back',
                             style: TextStyle(
-                              color: Colors.grey,
+                              color: colors.textSecondary,
                               fontSize: 12,
                             ),
                           ),
@@ -213,7 +215,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                 physics: const NeverScrollableScrollPhysics(),
                 onPageChanged: (i) => setState(() => _currentPage = i),
                 children: [
-                  _WelcomePage(),
+                  const _WelcomePage(),
                   _GoalTypePage(
                     selectedGoal: _goalType,
                     goalTypes: _goalTypes,
@@ -267,8 +269,11 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
 
 // Page 1 — Welcome
 class _WelcomePage extends StatelessWidget {
+  const _WelcomePage();
+
   @override
   Widget build(BuildContext context) {
+    final colors = context.appColors;
     return Padding(
       padding: const EdgeInsets.all(24),
       child: Column(
@@ -278,40 +283,41 @@ class _WelcomePage extends StatelessWidget {
             width: 120,
             height: 120,
             decoration: BoxDecoration(
-              color: const Color(0xFF4CAF50).withOpacity(0.1),
+              color: AppTheme.primary.withOpacity(0.1),
               shape: BoxShape.circle,
             ),
             child: const Icon(
               Icons.restaurant,
               size: 60,
-              color: Color(0xFF4CAF50),
+              color: AppTheme.primary,
             ),
           ),
           const SizedBox(height: 32),
-          const Text(
+          Text(
             'Welcome to Eatsy! 🎉',
             style: TextStyle(
               fontSize: 28,
               fontWeight: FontWeight.bold,
+              color: colors.textPrimary,
             ),
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: 16),
-          const Text(
+          Text(
             'Let\'s set up your personal nutrition plan in just a few steps.',
             style: TextStyle(
               fontSize: 16,
-              color: Colors.grey,
+              color: colors.textSecondary,
               height: 1.5,
             ),
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: 40),
-          _FeatureRow(icon: Icons.camera_alt, text: 'Scan food with AI camera'),
+          const _FeatureRow(icon: Icons.camera_alt, text: 'Scan food with AI camera'),
           const SizedBox(height: 16),
-          _FeatureRow(icon: Icons.pie_chart, text: 'Track calories & macros daily'),
+          const _FeatureRow(icon: Icons.pie_chart, text: 'Track calories & macros daily'),
           const SizedBox(height: 16),
-          _FeatureRow(icon: Icons.flag, text: 'Reach your personal goals'),
+          const _FeatureRow(icon: Icons.flag, text: 'Reach your personal goals'),
         ],
       ),
     );
@@ -325,20 +331,21 @@ class _FeatureRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.appColors;
     return Row(
       children: [
         Container(
           padding: const EdgeInsets.all(10),
           decoration: BoxDecoration(
-            color: const Color(0xFF4CAF50).withOpacity(0.1),
+            color: AppTheme.primary.withOpacity(0.1),
             borderRadius: BorderRadius.circular(12),
           ),
-          child: Icon(icon, color: const Color(0xFF4CAF50), size: 22),
+          child: const Icon(Icons.camera_alt, color: AppTheme.primary, size: 22),
         ),
         const SizedBox(width: 16),
         Text(
           text,
-          style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w500),
+          style: TextStyle(fontSize: 15, fontWeight: FontWeight.w500, color: colors.textPrimary),
         ),
       ],
     );
@@ -359,19 +366,20 @@ class _GoalTypePage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.appColors;
     return Padding(
       padding: const EdgeInsets.all(24),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
+          Text(
             'What\'s your goal?',
-            style: TextStyle(fontSize: 26, fontWeight: FontWeight.bold),
+            style: TextStyle(fontSize: 26, fontWeight: FontWeight.bold, color: colors.textPrimary),
           ),
           const SizedBox(height: 8),
-          const Text(
+          Text(
             'We\'ll customize your daily calorie target based on this.',
-            style: TextStyle(color: Colors.grey, fontSize: 14),
+            style: TextStyle(color: colors.textSecondary, fontSize: 14),
           ),
           const SizedBox(height: 32),
           ...goalTypes.map((goal) {
@@ -383,13 +391,13 @@ class _GoalTypePage extends StatelessWidget {
                 padding: const EdgeInsets.all(20),
                 decoration: BoxDecoration(
                   color: isSelected
-                      ? const Color(0xFF4CAF50).withOpacity(0.08)
-                      : Colors.white,
+                      ? AppTheme.primary.withOpacity(0.08)
+                      : colors.surface,
                   borderRadius: BorderRadius.circular(16),
                   border: Border.all(
                     color: isSelected
-                        ? const Color(0xFF4CAF50)
-                        : Colors.grey[200]!,
+                        ? AppTheme.primary
+                        : colors.divider,
                     width: isSelected ? 2 : 1,
                   ),
                 ),
@@ -407,15 +415,15 @@ class _GoalTypePage extends StatelessWidget {
                               fontWeight: FontWeight.w700,
                               fontSize: 16,
                               color: isSelected
-                                  ? const Color(0xFF4CAF50)
-                                  : Colors.black,
+                                  ? AppTheme.primary
+                                  : colors.textPrimary,
                             ),
                           ),
                           const SizedBox(height: 4),
                           Text(
                             goal['desc'],
-                            style: const TextStyle(
-                              color: Colors.grey,
+                            style: TextStyle(
+                              color: colors.textSecondary,
                               fontSize: 13,
                             ),
                           ),
@@ -424,7 +432,7 @@ class _GoalTypePage extends StatelessWidget {
                     ),
                     if (isSelected)
                       const Icon(Icons.check_circle,
-                          color: Color(0xFF4CAF50)),
+                          color: AppTheme.primary),
                   ],
                 ),
               ),
@@ -454,19 +462,20 @@ class _WeightPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.appColors;
     return Padding(
       padding: const EdgeInsets.all(24),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
+          Text(
             'Your weight',
-            style: TextStyle(fontSize: 26, fontWeight: FontWeight.bold),
+            style: TextStyle(fontSize: 26, fontWeight: FontWeight.bold, color: colors.textPrimary),
           ),
           const SizedBox(height: 8),
-          const Text(
+          Text(
             'This helps us calculate your personalized plan.',
-            style: TextStyle(color: Colors.grey, fontSize: 14),
+            style: TextStyle(color: colors.textSecondary, fontSize: 14),
           ),
           const SizedBox(height: 32),
 
@@ -478,7 +487,7 @@ class _WeightPage extends StatelessWidget {
             onChanged: onCurrentChanged,
             min: 30,
             max: 200,
-            color: const Color(0xFF4CAF50),
+            color: AppTheme.primary,
           ),
           const SizedBox(height: 20),
 
@@ -523,10 +532,11 @@ class _WeightCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.appColors;
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: colors.surface,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: color.withOpacity(0.3)),
       ),
@@ -601,19 +611,20 @@ class _ActivityPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.appColors;
     return Padding(
       padding: const EdgeInsets.all(24),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
+          Text(
             'Activity level',
-            style: TextStyle(fontSize: 26, fontWeight: FontWeight.bold),
+            style: TextStyle(fontSize: 26, fontWeight: FontWeight.bold, color: colors.textPrimary),
           ),
           const SizedBox(height: 8),
-          const Text(
+          Text(
             'How active are you on a typical week?',
-            style: TextStyle(color: Colors.grey, fontSize: 14),
+            style: TextStyle(color: colors.textSecondary, fontSize: 14),
           ),
           const SizedBox(height: 32),
           ...activityLevels.map((level) {
@@ -625,13 +636,13 @@ class _ActivityPage extends StatelessWidget {
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
                   color: isSelected
-                      ? const Color(0xFF4CAF50).withOpacity(0.08)
-                      : Colors.white,
+                      ? AppTheme.primary.withOpacity(0.08)
+                      : colors.surface,
                   borderRadius: BorderRadius.circular(16),
                   border: Border.all(
                     color: isSelected
-                        ? const Color(0xFF4CAF50)
-                        : Colors.grey[200]!,
+                        ? AppTheme.primary
+                        : colors.divider,
                     width: isSelected ? 2 : 1,
                   ),
                 ),
@@ -652,14 +663,14 @@ class _ActivityPage extends StatelessWidget {
                               fontWeight: FontWeight.w700,
                               fontSize: 15,
                               color: isSelected
-                                  ? const Color(0xFF4CAF50)
-                                  : Colors.black,
+                                  ? AppTheme.primary
+                                  : colors.textPrimary,
                             ),
                           ),
                           Text(
                             level['desc'],
-                            style: const TextStyle(
-                              color: Colors.grey,
+                            style: TextStyle(
+                              color: colors.textSecondary,
                               fontSize: 12,
                             ),
                           ),
@@ -668,7 +679,7 @@ class _ActivityPage extends StatelessWidget {
                     ),
                     if (isSelected)
                       const Icon(Icons.check_circle,
-                          color: Color(0xFF4CAF50), size: 20),
+                          color: AppTheme.primary, size: 20),
                   ],
                 ),
               ),
