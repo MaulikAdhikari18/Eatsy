@@ -8,6 +8,8 @@ import '../../../core/config/app_config.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
+import '../../../core/theme/app_theme.dart';
+import '../../../core/theme/app_colors.dart';
 
 class MealPlanScreen extends ConsumerStatefulWidget {
   const MealPlanScreen({super.key});
@@ -31,6 +33,8 @@ class _MealPlanScreenState extends ConsumerState<MealPlanScreen> {
     'Day 7',
   ];
 
+  // Note: PDF export always renders on a white page — that's standard for
+  // printable documents and intentionally does NOT follow the app's theme.
   Future<void> _exportToPdf() async {
     if (_mealPlan == null) return;
 
@@ -310,13 +314,9 @@ Replace all "meal" placeholders with real personalized meal names. Keep calories
         },
       );
 
-      print('📦 Groq status: ${response.statusCode}');
-      print('📦 Groq response: ${response.data}');
-
       if (response.statusCode == 200) {
         final content =
         response.data['choices'][0]['message']['content'] as String;
-        print('🤖 AI content: $content');
 
         final cleanJson = content
             .replaceAll('```json', '')
@@ -331,7 +331,7 @@ Replace all "meal" placeholders with real personalized meal names. Keep calories
           _selectedDay = firstDay['day'].toString();
         });
       } else {
-        print('❌ Groq error: ${response.data}');
+        debugPrint('❌ Groq error: ${response.data}');
         final userData2 = await _getUserData();
         final fallback = _getFallbackPlan(userData2);
         setState(() {
@@ -340,7 +340,7 @@ Replace all "meal" placeholders with real personalized meal names. Keep calories
         });
       }
     } catch (e) {
-      print('❌ Error: $e');
+      debugPrint('❌ Error: $e');
       final userData = await _getUserData();
       final fallback = _getFallbackPlan(userData);
       setState(() {
@@ -349,15 +349,6 @@ Replace all "meal" placeholders with real personalized meal names. Keep calories
       });
     } finally {
       if (mounted) setState(() => _isGenerating = false);
-    }
-  }
-
-  Map<String, dynamic> _parseJson(String jsonStr) {
-    try {
-      return jsonDecode(jsonStr) as Map<String, dynamic>;
-    } catch (e) {
-      print('❌ JSON parse error: $e');
-      return _getFallbackPlan({});
     }
   }
 
@@ -423,11 +414,14 @@ Replace all "meal" placeholders with real personalized meal names. Keep calories
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.appColors;
+
     return Scaffold(
-      backgroundColor: const Color(0xFFF9F9F9),
+      backgroundColor: colors.background,
       appBar: AppBar(
-        title: const Text('Meal Plan', style: TextStyle(color: Color(0xFF1A1A1A), fontWeight: FontWeight.w600, fontSize: 18)),
-        backgroundColor: Colors.white,
+        title: Text('Meal Plan',
+            style: TextStyle(color: colors.textPrimary, fontWeight: FontWeight.w600, fontSize: 18)),
+        backgroundColor: colors.surface,
         elevation: 0,
       ),
       body: SingleChildScrollView(
@@ -435,13 +429,14 @@ Replace all "meal" placeholders with real personalized meal names. Keep calories
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Header card
+            // Header card — keeps its green gradient in both themes; it's a
+            // branded hero card, not a content surface, so it stays as-is.
             Container(
               width: double.infinity,
               padding: const EdgeInsets.all(20),
               decoration: BoxDecoration(
                 gradient: const LinearGradient(
-                  colors: [Color(0xFF4CAF50), Color(0xFF81C784)],
+                  colors: [AppTheme.primary, AppTheme.secondary],
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                 ),
@@ -471,7 +466,7 @@ Replace all "meal" placeholders with real personalized meal names. Keep calories
                     onPressed: _isGenerating ? null : _generateMealPlan,
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.white,
-                      foregroundColor: const Color(0xFF4CAF50),
+                      foregroundColor: AppTheme.primary,
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12),
                       ),
@@ -482,7 +477,7 @@ Replace all "meal" placeholders with real personalized meal names. Keep calories
                       width: 20,
                       child: CircularProgressIndicator(
                         strokeWidth: 2,
-                        color: Color(0xFF4CAF50),
+                        color: AppTheme.primary,
                       ),
                     )
                         : const Text(
@@ -497,17 +492,17 @@ Replace all "meal" placeholders with real personalized meal names. Keep calories
             const SizedBox(height: 24),
 
             if (_isGenerating) ...[
-              const Center(
+              Center(
                 child: Column(
                   children: [
-                    SizedBox(height: 40),
-                    CircularProgressIndicator(color: Color(0xFF4CAF50)),
-                    SizedBox(height: 16),
+                    const SizedBox(height: 40),
+                    const CircularProgressIndicator(color: AppTheme.primary),
+                    const SizedBox(height: 16),
                     Text(
                       'AI is creating your personalized\nmeal plan...',
                       textAlign: TextAlign.center,
                       style: TextStyle(
-                        color: const Color(0xFF9E9E9E),
+                        color: colors.textMuted,
                         fontSize: 14,
                       ),
                     ),
@@ -521,12 +516,12 @@ Replace all "meal" placeholders with real personalized meal names. Keep calories
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  const Text(
+                  Text(
                     'Your 7-Day Plan',
                     style: TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.bold,
-                      color: const Color(0xFF1A1A1A),
+                      color: colors.textPrimary,
                     ),
                   ),
                   SizedBox(
@@ -535,7 +530,7 @@ Replace all "meal" placeholders with real personalized meal names. Keep calories
                     child: ElevatedButton.icon(
                       onPressed: _exportToPdf,
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF4CAF50),
+                        backgroundColor: AppTheme.primary,
                         padding: const EdgeInsets.symmetric(
                           horizontal: 8,
                           vertical: 4,
@@ -575,19 +570,19 @@ Replace all "meal" placeholders with real personalized meal names. Keep calories
                         ),
                         decoration: BoxDecoration(
                           color: isSelected
-                              ? const Color(0xFF4CAF50)
-                              : Colors.white,
+                              ? AppTheme.primary
+                              : colors.surface,
                           borderRadius: BorderRadius.circular(20),
                           border: Border.all(
                             color: isSelected
-                                ? const Color(0xFF4CAF50)
-                                : Colors.grey[200]!,
+                                ? AppTheme.primary
+                                : colors.divider,
                           ),
                         ),
                         child: Text(
                           day['day'].toString(),
                           style: TextStyle(
-                            color: isSelected ? Colors.white : Colors.grey[600],
+                            color: isSelected ? Colors.white : colors.textSecondary,
                             fontWeight: FontWeight.w500,
                             fontSize: 13,
                           ),
@@ -616,25 +611,24 @@ Replace all "meal" placeholders with real personalized meal names. Keep calories
                     Container(
                       padding: const EdgeInsets.all(16),
                       decoration: BoxDecoration(
-                        color: const Color(0xFF4CAF50).withOpacity(0.08),
+                        color: AppTheme.primary.withOpacity(0.08),
                         borderRadius: BorderRadius.circular(12),
                         border: Border.all(
-                          color:
-                          const Color(0xFF4CAF50).withOpacity(0.2),
+                          color: AppTheme.primary.withOpacity(0.2),
                         ),
                       ),
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
                           const Icon(Icons.local_fire_department,
-                              color: Color(0xFF4CAF50)),
+                              color: AppTheme.primary),
                           const SizedBox(width: 8),
                           Text(
                             'Total: $totalCals kcal',
                             style: const TextStyle(
                               fontWeight: FontWeight.bold,
                               fontSize: 16,
-                              color: Color(0xFF4CAF50),
+                              color: AppTheme.primary,
                             ),
                           ),
                         ],
@@ -668,21 +662,21 @@ Replace all "meal" placeholders with real personalized meal names. Keep calories
                     Icon(
                       Icons.restaurant_menu,
                       size: 80,
-                      color: Colors.grey[300],
+                      color: colors.divider,
                     ),
                     const SizedBox(height: 16),
-                    const Text(
+                    Text(
                       'No meal plan yet',
                       style: TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.w600,
-                        color: const Color(0xFF9E9E9E),
+                        color: colors.textMuted,
                       ),
                     ),
                     const SizedBox(height: 8),
-                    const Text(
+                    Text(
                       'Tap "Generate My Plan" to get started',
-                      style: TextStyle(color: const Color(0xFF9E9E9E), fontSize: 13),
+                      style: TextStyle(color: colors.textMuted, fontSize: 13),
                     ),
                   ],
                 ),
@@ -716,7 +710,7 @@ Replace all "meal" placeholders with real personalized meal names. Keep calories
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('${meal['name']} logged to $mealType!'),
-            backgroundColor: const Color(0xFF4CAF50),
+            backgroundColor: AppTheme.primary,
           ),
         );
       }
@@ -761,7 +755,7 @@ class _MealPlanCard extends StatelessWidget {
       case 'breakfast':
         return const Color(0xFFFB8C00);
       case 'lunch':
-        return const Color(0xFF4CAF50);
+        return AppTheme.primary;
       case 'dinner':
         return const Color(0xFF3F51B5);
       case 'snack':
@@ -773,14 +767,15 @@ class _MealPlanCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.appColors;
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: colors.surface,
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.04),
+            color: colors.cardShadow,
             blurRadius: 8,
             offset: const Offset(0, 2),
           ),
@@ -795,7 +790,7 @@ class _MealPlanCard extends StatelessWidget {
               vertical: 12,
             ),
             decoration: BoxDecoration(
-              color: _color.withOpacity(0.06),
+              color: _color.withOpacity(0.08),
               borderRadius: const BorderRadius.vertical(
                 top: Radius.circular(16),
               ),
@@ -824,10 +819,10 @@ class _MealPlanCard extends StatelessWidget {
               children: [
                 Text(
                   meal['name']?.toString() ?? '',
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontWeight: FontWeight.w600,
                     fontSize: 15,
-                    color: const Color(0xFF1A1A1A),
+                    color: colors.textPrimary,
                   ),
                 ),
                 const SizedBox(height: 10),
@@ -836,7 +831,7 @@ class _MealPlanCard extends StatelessWidget {
                     _NutriBadge(
                       label: 'Cal',
                       value: '${meal['calories']}',
-                      color: const Color(0xFF4CAF50),
+                      color: AppTheme.primary,
                     ),
                     const SizedBox(width: 8),
                     _NutriBadge(
