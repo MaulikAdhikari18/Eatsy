@@ -1,10 +1,10 @@
 import 'dart:io';
-import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:dio/dio.dart';
 import '../../../core/services/fatsecret_service.dart';
+import '../../../core/theme/app_theme.dart';
+import '../../../core/theme/app_colors.dart';
 
 class ScanScreen extends StatefulWidget {
   const ScanScreen({super.key});
@@ -98,7 +98,7 @@ class _ScanScreenState extends State<ScanScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('Meal logged successfully!'),
-            backgroundColor: Color(0xFF4CAF50),
+            backgroundColor: AppTheme.primary,
           ),
         );
         setState(() {
@@ -118,11 +118,14 @@ class _ScanScreenState extends State<ScanScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.appColors;
+
     return Scaffold(
-      backgroundColor: const Color(0xFFF9F9F9),
+      backgroundColor: colors.background,
       appBar: AppBar(
-        title: const Text('Scan Food', style: TextStyle(color: Color(0xFF1A1A1A), fontWeight: FontWeight.w600, fontSize: 18)),
-        backgroundColor: Colors.white,
+        title: Text('Scan Food',
+            style: TextStyle(color: colors.textPrimary, fontWeight: FontWeight.w600, fontSize: 18)),
+        backgroundColor: colors.surface,
         elevation: 0,
       ),
       body: SingleChildScrollView(
@@ -137,10 +140,10 @@ class _ScanScreenState extends State<ScanScreen> {
                 width: double.infinity,
                 height: 260,
                 decoration: BoxDecoration(
-                  color: Colors.white,
+                  color: colors.surface,
                   borderRadius: BorderRadius.circular(20),
                   border: Border.all(
-                    color: const Color(0xFF4CAF50).withOpacity(0.3),
+                    color: AppTheme.primary.withOpacity(0.3),
                     width: 2,
                   ),
                 ),
@@ -158,13 +161,13 @@ class _ScanScreenState extends State<ScanScreen> {
                     Container(
                       padding: const EdgeInsets.all(20),
                       decoration: BoxDecoration(
-                        color: const Color(0xFF4CAF50).withOpacity(0.1),
+                        color: AppTheme.primary.withOpacity(0.1),
                         shape: BoxShape.circle,
                       ),
                       child: const Icon(
                         Icons.camera_alt,
                         size: 48,
-                        color: Color(0xFF4CAF50),
+                        color: AppTheme.primary,
                       ),
                     ),
                     const SizedBox(height: 16),
@@ -173,15 +176,15 @@ class _ScanScreenState extends State<ScanScreen> {
                       style: TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.w600,
-                        color: Color(0xFF4CAF50),
+                        color: AppTheme.primary,
                       ),
                     ),
                     const SizedBox(height: 4),
-                    const Text(
+                    Text(
                       'or upload from gallery',
                       style: TextStyle(
                         fontSize: 13,
-                        color: const Color(0xFF9E9E9E),
+                        color: colors.textMuted,
                       ),
                     ),
                   ],
@@ -232,25 +235,25 @@ class _ScanScreenState extends State<ScanScreen> {
                 width: double.infinity,
                 padding: const EdgeInsets.all(24),
                 decoration: BoxDecoration(
-                  color: Colors.white,
+                  color: colors.surface,
                   borderRadius: BorderRadius.circular(16),
                 ),
-                child: const Column(
+                child: Column(
                   children: [
-                    CircularProgressIndicator(color: Color(0xFF4CAF50)),
-                    SizedBox(height: 16),
+                    const CircularProgressIndicator(color: AppTheme.primary),
+                    const SizedBox(height: 16),
                     Text(
                       'Analyzing your meal...',
                       style: TextStyle(
                         fontWeight: FontWeight.w600,
                         fontSize: 15,
-                        color: const Color(0xFF1A1A1A),
+                        color: colors.textPrimary,
                       ),
                     ),
-                    SizedBox(height: 4),
+                    const SizedBox(height: 4),
                     Text(
                       'AI is detecting food items',
-                      style: TextStyle(color: const Color(0xFF9E9E9E), fontSize: 13),
+                      style: TextStyle(color: colors.textMuted, fontSize: 13),
                     ),
                   ],
                 ),
@@ -262,11 +265,11 @@ class _ScanScreenState extends State<ScanScreen> {
                 width: double.infinity,
                 padding: const EdgeInsets.all(20),
                 decoration: BoxDecoration(
-                  color: Colors.white,
+                  color: colors.surface,
                   borderRadius: BorderRadius.circular(16),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withOpacity(0.05),
+                      color: colors.cardShadow,
                       blurRadius: 10,
                       offset: const Offset(0, 4),
                     ),
@@ -276,17 +279,17 @@ class _ScanScreenState extends State<ScanScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     // Header
-                    Row(
+                    const Row(
                       children: [
-                        const Icon(Icons.check_circle,
-                            color: Color(0xFF4CAF50)),
-                        const SizedBox(width: 8),
-                        const Text(
+                        Icon(Icons.check_circle,
+                            color: AppTheme.primary),
+                        SizedBox(width: 8),
+                        Text(
                           'Food Detected!',
                           style: TextStyle(
                             fontWeight: FontWeight.bold,
                             fontSize: 16,
-                            color: Color(0xFF4CAF50),
+                            color: AppTheme.primary,
                           ),
                         ),
                       ],
@@ -295,10 +298,10 @@ class _ScanScreenState extends State<ScanScreen> {
 
                     Text(
                       _scanResult!['food_name'],
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
-                        color: const Color(0xFF1A1A1A),
+                        color: colors.textPrimary,
                       ),
                     ),
                     const SizedBox(height: 16),
@@ -311,7 +314,7 @@ class _ScanScreenState extends State<ScanScreen> {
                           value:
                           '${(_scanResult!['calories'] as double).toInt()}',
                           unit: 'kcal',
-                          color: const Color(0xFF4CAF50),
+                          color: AppTheme.primary,
                         ),
                         _NutritionTile(
                           label: 'Protein',
@@ -337,12 +340,12 @@ class _ScanScreenState extends State<ScanScreen> {
                     // Detected items
                     if (_scanResult!['items'] != null) ...[
                       const SizedBox(height: 16),
-                      const Text(
+                      Text(
                         'Detected Items',
                         style: TextStyle(
                           fontWeight: FontWeight.w600,
                           fontSize: 14,
-                          color: const Color(0xFF1A1A1A),
+                          color: colors.textPrimary,
                         ),
                       ),
                       const SizedBox(height: 8),
@@ -355,16 +358,17 @@ class _ScanScreenState extends State<ScanScreen> {
                             children: [
                               Row(
                                 children: [
-                                  const Icon(Icons.fiber_manual_record,
-                                      size: 8, color: Colors.grey),
+                                  Icon(Icons.fiber_manual_record,
+                                      size: 8, color: colors.textMuted),
                                   const SizedBox(width: 8),
-                                  Text(item['name']),
+                                  Text(item['name'],
+                                      style: TextStyle(color: colors.textPrimary)),
                                 ],
                               ),
                               Text(
                                 '${item['calories']} kcal',
-                                style: const TextStyle(
-                                  color: const Color(0xFF9E9E9E),
+                                style: TextStyle(
+                                  color: colors.textMuted,
                                   fontSize: 13,
                                 ),
                               ),
@@ -380,12 +384,12 @@ class _ScanScreenState extends State<ScanScreen> {
               const SizedBox(height: 20),
 
               // Meal type selector
-              const Text(
+              Text(
                 'Add to meal',
                 style: TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.bold,
-                  color: const Color(0xFF1A1A1A),
+                  color: colors.textPrimary,
                 ),
               ),
               const SizedBox(height: 10),
@@ -405,13 +409,13 @@ class _ScanScreenState extends State<ScanScreen> {
                         ),
                         decoration: BoxDecoration(
                           color: isSelected
-                              ? const Color(0xFF4CAF50)
-                              : Colors.white,
+                              ? AppTheme.primary
+                              : colors.surface,
                           borderRadius: BorderRadius.circular(20),
                           border: Border.all(
                             color: isSelected
-                                ? const Color(0xFF4CAF50)
-                                : Colors.grey[200]!,
+                                ? AppTheme.primary
+                                : colors.divider,
                           ),
                         ),
                         child: Text(
@@ -419,7 +423,7 @@ class _ScanScreenState extends State<ScanScreen> {
                           style: TextStyle(
                             color: isSelected
                                 ? Colors.white
-                                : Colors.grey[600],
+                                : colors.textSecondary,
                             fontWeight: FontWeight.w500,
                           ),
                         ),
@@ -460,8 +464,10 @@ class _ScanScreenState extends State<ScanScreen> {
   }
 
   void _showImageSourceSheet() {
+    final colors = context.appColors;
     showModalBottomSheet(
       context: context,
+      backgroundColor: colors.surface,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
@@ -471,9 +477,9 @@ class _ScanScreenState extends State<ScanScreen> {
           mainAxisSize: MainAxisSize.min,
           children: [
             ListTile(
-              leading: const CircleAvatar(
-                backgroundColor: Color(0xFFE8F5E9),
-                child: Icon(Icons.camera_alt, color: Color(0xFF4CAF50)),
+              leading: CircleAvatar(
+                backgroundColor: AppTheme.primary.withOpacity(0.12),
+                child: const Icon(Icons.camera_alt, color: AppTheme.primary),
               ),
               title: const Text('Take a Photo'),
               onTap: () {
@@ -515,6 +521,7 @@ class _NutritionTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.appColors;
     return Expanded(
       child: Column(
         children: [
@@ -528,11 +535,11 @@ class _NutritionTile extends StatelessWidget {
           ),
           Text(
             unit,
-            style: TextStyle(color: Colors.grey[500], fontSize: 11),
+            style: TextStyle(color: colors.textMuted, fontSize: 11),
           ),
           Text(
             label,
-            style: const TextStyle(fontSize: 12, color: Colors.grey),
+            style: TextStyle(fontSize: 12, color: colors.textSecondary),
           ),
         ],
       ),

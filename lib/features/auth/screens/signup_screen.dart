@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../controllers/auth_controller.dart';
+import '../../../core/theme/app_theme.dart';
+import '../../../core/theme/app_colors.dart';
 
 class SignupScreen extends ConsumerStatefulWidget {
   const SignupScreen({super.key});
@@ -76,6 +78,8 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.appColors;
+
     return Scaffold(
       body: SafeArea(
         child: SingleChildScrollView(
@@ -88,34 +92,35 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
               // Back button
               GestureDetector(
                 onTap: () => context.pop(),
-                child: const Icon(Icons.arrow_back_ios, size: 20),
+                child: Icon(Icons.arrow_back_ios, size: 20, color: colors.textPrimary),
               ),
 
               const SizedBox(height: 24),
 
               // Title
-              const Text(
+              Text(
                 'Create Account',
                 style: TextStyle(
                   fontSize: 28,
                   fontWeight: FontWeight.bold,
+                  color: colors.textPrimary,
                 ),
               ),
               const SizedBox(height: 8),
-              const Text(
+              Text(
                 'Start your nutrition journey today',
                 style: TextStyle(
                   fontSize: 14,
-                  color: Colors.grey,
+                  color: colors.textSecondary,
                 ),
               ),
 
               const SizedBox(height: 32),
 
               // Full Name
-              const Text(
+              Text(
                 'Full Name',
-                style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
+                style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14, color: colors.textPrimary),
               ),
               const SizedBox(height: 8),
               TextField(
@@ -130,9 +135,9 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
               const SizedBox(height: 16),
 
               // Email
-              const Text(
+              Text(
                 'Email',
-                style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
+                style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14, color: colors.textPrimary),
               ),
               const SizedBox(height: 8),
               TextField(
@@ -147,9 +152,9 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
               const SizedBox(height: 16),
 
               // Password
-              const Text(
+              Text(
                 'Password',
-                style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
+                style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14, color: colors.textPrimary),
               ),
               const SizedBox(height: 8),
               TextField(
@@ -173,9 +178,9 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
               const SizedBox(height: 16),
 
               // Confirm Password
-              const Text(
+              Text(
                 'Confirm Password',
-                style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
+                style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14, color: colors.textPrimary),
               ),
               const SizedBox(height: 8),
               TextField(
@@ -219,13 +224,13 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  const Text('Already have an account? '),
+                  Text('Already have an account? ', style: TextStyle(color: colors.textSecondary)),
                   GestureDetector(
                     onTap: () => context.pop(),
                     child: const Text(
                       'Sign In',
                       style: TextStyle(
-                        color: Color(0xFF4CAF50),
+                        color: AppTheme.primary,
                         fontWeight: FontWeight.w600,
                       ),
                     ),
