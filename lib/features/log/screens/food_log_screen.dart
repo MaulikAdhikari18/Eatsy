@@ -4,6 +4,8 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:intl/intl.dart';
 import '../../../core/services/fatsecret_service.dart';
 import '../../../features/dashboard/controllers/dashboard_controller.dart';
+import '../../../core/theme/app_theme.dart';
+import '../../../core/theme/app_colors.dart';
 
 class FoodLogScreen extends ConsumerStatefulWidget {
   const FoodLogScreen({super.key});
@@ -72,13 +74,9 @@ class _FoodLogScreenState extends ConsumerState<FoodLogScreen> {
     }
     setState(() => _isSearching = true);
     try {
-      print('🔍 Searching for: $query');
       final results = await fatSecretService.searchFood(query);
-      print('✅ Results: ${results.length}');
       setState(() => _searchResults = results);
-    } catch (e, stack) {
-      print('❌ Search error: $e');
-      print('Stack: $stack');
+    } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Search error: $e')),
@@ -113,7 +111,7 @@ class _FoodLogScreenState extends ConsumerState<FoodLogScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('${food['food_name']} added to $_selectedMealType!'),
-            backgroundColor: const Color(0xFF4CAF50),
+            backgroundColor: AppTheme.primary,
           ),
         );
         _searchController.clear();
@@ -145,18 +143,21 @@ class _FoodLogScreenState extends ConsumerState<FoodLogScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.appColors;
+
     return Scaffold(
-      backgroundColor: const Color(0xFFF9F9F9),
+      backgroundColor: colors.background,
       appBar: AppBar(
-        title: const Text('Food Log', style: TextStyle(color: Color(0xFF1A1A1A), fontWeight: FontWeight.w600, fontSize: 18)),
-        backgroundColor: Colors.white,
+        title: Text('Food Log',
+            style: TextStyle(color: colors.textPrimary, fontWeight: FontWeight.w600, fontSize: 18)),
+        backgroundColor: colors.surface,
         elevation: 0,
       ),
       body: Column(
         children: [
           // Search bar
           Container(
-            color: Colors.white,
+            color: colors.surface,
             padding: const EdgeInsets.all(16),
             child: Column(
               children: [
@@ -195,8 +196,8 @@ class _FoodLogScreenState extends ConsumerState<FoodLogScreen> {
                           ),
                           decoration: BoxDecoration(
                             color: isSelected
-                                ? const Color(0xFF4CAF50)
-                                : Colors.grey[100],
+                                ? AppTheme.primary
+                                : colors.surfaceVariant,
                             borderRadius: BorderRadius.circular(20),
                           ),
                           child: Text(
@@ -204,7 +205,7 @@ class _FoodLogScreenState extends ConsumerState<FoodLogScreen> {
                             style: TextStyle(
                               color: isSelected
                                   ? Colors.white
-                                  : Colors.grey[600],
+                                  : colors.textSecondary,
                               fontWeight: FontWeight.w500,
                               fontSize: 13,
                             ),
@@ -221,24 +222,25 @@ class _FoodLogScreenState extends ConsumerState<FoodLogScreen> {
           // Search results
           if (_searchResults.isNotEmpty)
             Container(
-              color: Colors.white,
+              color: colors.surface,
               child: Column(
                 children: [
-                  const Divider(height: 1),
+                  Divider(height: 1, color: colors.divider),
                   ..._searchResults.map((food) => ListTile(
-                    leading: const CircleAvatar(
-                      backgroundColor: Color(0xFFE8F5E9),
-                      child: Icon(Icons.restaurant,
-                          color: Color(0xFF4CAF50), size: 20),
+                    leading: CircleAvatar(
+                      backgroundColor: AppTheme.primary.withOpacity(0.12),
+                      child: const Icon(Icons.restaurant,
+                          color: AppTheme.primary, size: 20),
                     ),
-                    title: Text(food['food_name'], style: const TextStyle(color: Color(0xFF1A1A1A), fontWeight: FontWeight.w500)),
+                    title: Text(food['food_name'],
+                        style: TextStyle(color: colors.textPrimary, fontWeight: FontWeight.w500)),
                     subtitle: Text(
                       '${food['calories'].toInt()} kcal · P: ${food['protein']}g · C: ${food['carbs']}g · F: ${food['fat']}g',
-                      style: const TextStyle(fontSize: 12, color: Color(0xFF555555)),
+                      style: TextStyle(fontSize: 12, color: colors.textSecondary),
                     ),
                     trailing: IconButton(
                       icon: const Icon(Icons.add_circle,
-                          color: Color(0xFF4CAF50)),
+                          color: AppTheme.primary),
                       onPressed: () => _logFood(food),
                     ),
                   )),
@@ -248,7 +250,7 @@ class _FoodLogScreenState extends ConsumerState<FoodLogScreen> {
           else if (_isSearching)
             const Padding(
               padding: EdgeInsets.all(20),
-              child: CircularProgressIndicator(color: Color(0xFF4CAF50)),
+              child: CircularProgressIndicator(color: AppTheme.primary),
             ),
 
           // Today's logs
@@ -256,23 +258,23 @@ class _FoodLogScreenState extends ConsumerState<FoodLogScreen> {
             child: _isLoading
                 ? const Center(
                 child: CircularProgressIndicator(
-                    color: Color(0xFF4CAF50)))
+                    color: AppTheme.primary))
                 : _todaysLogs.isEmpty
-                ? const Center(
+                ? Center(
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Icon(Icons.no_meals,
-                      size: 48, color: const Color(0xFF9E9E9E)),
-                  SizedBox(height: 12),
+                      size: 48, color: colors.textMuted),
+                  const SizedBox(height: 12),
                   Text(
                     'No food logged today',
-                    style: const TextStyle(color: Color(0xFF757575)),
+                    style: TextStyle(color: colors.textSecondary),
                   ),
                   Text(
                     'Search above to add meals',
-                    style: const TextStyle(
-                        color: Color(0xFF757575), fontSize: 12),
+                    style: TextStyle(
+                        color: colors.textMuted, fontSize: 12),
                   ),
                 ],
               ),
@@ -285,23 +287,23 @@ class _FoodLogScreenState extends ConsumerState<FoodLogScreen> {
                 return Container(
                   margin: const EdgeInsets.only(bottom: 10),
                   decoration: BoxDecoration(
-                    color: Colors.white,
+                    color: colors.surface,
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: ListTile(
-                    leading: const CircleAvatar(
-                      backgroundColor: Color(0xFFE8F5E9),
-                      child: Icon(Icons.restaurant,
-                          color: Color(0xFF4CAF50), size: 20),
+                    leading: CircleAvatar(
+                      backgroundColor: AppTheme.primary.withOpacity(0.12),
+                      child: const Icon(Icons.restaurant,
+                          color: AppTheme.primary, size: 20),
                     ),
                     title: Text(
                       log['food_name'] ?? '',
-                      style: const TextStyle(
-                          fontWeight: FontWeight.w600, color: Color(0xFF1A1A1A)),
+                      style: TextStyle(
+                          fontWeight: FontWeight.w600, color: colors.textPrimary),
                     ),
                     subtitle: Text(
                       '${(log['calories'] ?? 0).toInt()} kcal · ${log['meal_type']}',
-                      style: const TextStyle(fontSize: 12, color: Color(0xFF555555)),
+                      style: TextStyle(fontSize: 12, color: colors.textSecondary),
                     ),
                     trailing: IconButton(
                       icon: const Icon(Icons.delete_outline,
