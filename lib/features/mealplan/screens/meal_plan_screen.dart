@@ -10,6 +10,9 @@ import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../preferences/controllers/diet_preferences_controller.dart';
+import '../../preferences/models/diet_preferences.dart';
+import '../cuisine_reference.dart';
 
 class MealPlanScreen extends ConsumerStatefulWidget {
   const MealPlanScreen({super.key});
@@ -22,16 +25,6 @@ class _MealPlanScreenState extends ConsumerState<MealPlanScreen> {
   bool _isGenerating = false;
   Map<String, dynamic>? _mealPlan;
   String _selectedDay = 'Day 1';
-
-  final List<String> _days = [
-    'Today',
-    'Tomorrow',
-    'Day 3',
-    'Day 4',
-    'Day 5',
-    'Day 6',
-    'Day 7',
-  ];
 
   // Note: PDF export always renders on a white page — that's standard for
   // printable documents and intentionally does NOT follow the app's theme.
@@ -212,7 +205,9 @@ class _MealPlanScreenState extends ConsumerState<MealPlanScreen> {
     final supabase = Supabase.instance.client;
     final userId = supabase.auth.currentUser?.id;
 
-    // Get goals
+    // Get goals (now includes age/gender/height/activity_level too,
+    // but we only need the calorie/macro targets here — those are
+    // computed by the BMR/TDEE calculator on the Goals screen).
     final goals = await supabase
         .from('goals')
         .select()
@@ -244,10 +239,14 @@ class _MealPlanScreenState extends ConsumerState<MealPlanScreen> {
     };
   }
 
-  String _buildPrompt(Map<String, dynamic> userData) {
+  /// Builds the AI prompt following the exact template in Section 4.3
+  /// of the implementation guide, now parameterized with real diet
+  /// preferences (cuisine, allergies, diet type, medical conditions)
+  /// instead of a generic one-size-fits-all prompt.
+  String _buildPrompt(
+      Map<String, dynamic> userData, DietPreferences prefs) {
     final goals = userData['goals'];
     final logs = userData['logs'] as List;
-    final weight = userData['weight'];
 
     final foodCounts = <String, int>{};
     for (final log in logs) {
@@ -259,21 +258,46 @@ class _MealPlanScreenState extends ConsumerState<MealPlanScreen> {
     final topFoodNames =
     topFoods.take(5).map((e) => e.key).join(', ');
 
-    final dailyCalories = goals?['daily_calories'] ?? 2000;
-    final proteinGoal = goals?['protein_goal'] ?? 150;
-    final carbsGoal = goals?['carbs_goal'] ?? 250;
-    final fatGoal = goals?['fat_goal'] ?? 65;
-    final weightGoal = goals?['weight_goal'] ?? 'not set';
+    final calorieTarget = goals?['daily_calories'] ?? 2000;
+    final proteinG = goals?['protein_goal'] ?? 150;
+    final carbsG = goals?['carbs_goal'] ?? 250;
+    final fatG = goals?['fat_goal'] ?? 65;
+
+    final cuisineList =
+    prefs.cuisines.isEmpty ? 'Mixed' : prefs.cuisines.join(', ');
+    final allergyList =
+    prefs.allergies.isEmpty ? 'None' : prefs.allergies.join(', ');
+    final conditionList = prefs.medicalConditions.isEmpty
+        ? 'None'
+        : prefs.medicalConditions.join(', ');
+    final dietTypeLabel = DietPreferenceOptions.dietTypes.firstWhere(
+          (d) => d['key'] == prefs.dietType,
+      orElse: () => {'label': 'No Restriction'},
+    )['label'];
+
+    final referenceDishes =
+    CuisineReference.referenceBlockFor(prefs.cuisines);
 
     return '''
-Create a 7-day meal plan. Return ONLY valid JSON, nothing else.
+You are a certified nutritionist and dietitian. Generate a 7-day meal plan with BREAKFAST, LUNCH, DINNER, and SNACK for each day.
 
-User: weight=${weight ?? 70}kg, target=${weightGoal}kg, calories=$dailyCalories, protein=${proteinGoal}g, carbs=${carbsGoal}g, fat=${fatGoal}g, likes=$topFoodNames
+Rules:
+(1) Calorie target: $calorieTarget kcal/day ± 50kcal.
+(2) Macros: Protein ${proteinG}g / Carbs ${carbsG}g / Fat ${fatG}g.
+(3) Cuisine: $cuisineList — use authentic dishes from these cuisines. Reference dishes to draw from (stay close to real, recognizable dishes rather than inventing unfamiliar ones):
+$referenceDishes
+(4) Exclude entirely, in every meal: $allergyList.
+(5) Diet type: $dietTypeLabel — every meal must comply.
+(6) Medical considerations: $conditionList — e.g. diabetic = low glycemic index focus, hypertension = low sodium. Annotate affected meals with a short note if relevant.
+(7) User's recently logged foods (avoid excessive repetition, but familiarity is fine): $topFoodNames
+(8) Each meal must include: dish name, portion size, calories, protein g, carbs g, fat g.
+(9) Include simple prep instructions (max 3 steps) as a "prep" field — array of up to 3 short strings.
+(10) Output strictly as JSON, no extra text, no markdown fences.
 
 JSON format (ALL 7 days, ALL 4 meals per day):
-{"days":[{"day":"Day 1","total_calories":$dailyCalories,"meals":{"breakfast":{"name":"meal","calories":350,"protein":15,"carbs":50,"fat":8},"lunch":{"name":"meal","calories":550,"protein":35,"carbs":60,"fat":14},"dinner":{"name":"meal","calories":500,"protein":30,"carbs":55,"fat":12},"snack":{"name":"meal","calories":200,"protein":10,"carbs":25,"fat":6}}},{"day":"Day 2","total_calories":$dailyCalories,"meals":{"breakfast":{"name":"meal","calories":350,"protein":15,"carbs":50,"fat":8},"lunch":{"name":"meal","calories":550,"protein":35,"carbs":60,"fat":14},"dinner":{"name":"meal","calories":500,"protein":30,"carbs":55,"fat":12},"snack":{"name":"meal","calories":200,"protein":10,"carbs":25,"fat":6}}},{"day":"Day 3","total_calories":$dailyCalories,"meals":{"breakfast":{"name":"meal","calories":350,"protein":15,"carbs":50,"fat":8},"lunch":{"name":"meal","calories":550,"protein":35,"carbs":60,"fat":14},"dinner":{"name":"meal","calories":500,"protein":30,"carbs":55,"fat":12},"snack":{"name":"meal","calories":200,"protein":10,"carbs":25,"fat":6}}},{"day":"Day 4","total_calories":$dailyCalories,"meals":{"breakfast":{"name":"meal","calories":350,"protein":15,"carbs":50,"fat":8},"lunch":{"name":"meal","calories":550,"protein":35,"carbs":60,"fat":14},"dinner":{"name":"meal","calories":500,"protein":30,"carbs":55,"fat":12},"snack":{"name":"meal","calories":200,"protein":10,"carbs":25,"fat":6}}},{"day":"Day 5","total_calories":$dailyCalories,"meals":{"breakfast":{"name":"meal","calories":350,"protein":15,"carbs":50,"fat":8},"lunch":{"name":"meal","calories":550,"protein":35,"carbs":60,"fat":14},"dinner":{"name":"meal","calories":500,"protein":30,"carbs":55,"fat":12},"snack":{"name":"meal","calories":200,"protein":10,"carbs":25,"fat":6}}},{"day":"Day 6","total_calories":$dailyCalories,"meals":{"breakfast":{"name":"meal","calories":350,"protein":15,"carbs":50,"fat":8},"lunch":{"name":"meal","calories":550,"protein":35,"carbs":60,"fat":14},"dinner":{"name":"meal","calories":500,"protein":30,"carbs":55,"fat":12},"snack":{"name":"meal","calories":200,"protein":10,"carbs":25,"fat":6}}},{"day":"Day 7","total_calories":$dailyCalories,"meals":{"breakfast":{"name":"meal","calories":350,"protein":15,"carbs":50,"fat":8},"lunch":{"name":"meal","calories":550,"protein":35,"carbs":60,"fat":14},"dinner":{"name":"meal","calories":500,"protein":30,"carbs":55,"fat":12},"snack":{"name":"meal","calories":200,"protein":10,"carbs":25,"fat":6}}}]}
+{"days":[{"day":"Day 1","total_calories":$calorieTarget,"meals":{"breakfast":{"name":"meal","calories":350,"protein":15,"carbs":50,"fat":8,"prep":["step 1","step 2"]},"lunch":{"name":"meal","calories":550,"protein":35,"carbs":60,"fat":14,"prep":["step 1","step 2"]},"dinner":{"name":"meal","calories":500,"protein":30,"carbs":55,"fat":12,"prep":["step 1","step 2"]},"snack":{"name":"meal","calories":200,"protein":10,"carbs":25,"fat":6,"prep":["step 1"]}}}]}
 
-Replace all "meal" placeholders with real personalized meal names. Keep calories close to $dailyCalories total per day.
+Generate all 7 days following this exact structure. Replace all placeholder values with real personalized meals. Keep each day's total close to $calorieTarget kcal.
 ''';
   }
 
@@ -285,7 +309,10 @@ Replace all "meal" placeholders with real personalized meal names. Keep calories
 
     try {
       final userData = await _getUserData();
-      final prompt = _buildPrompt(userData);
+      final prefs =
+          await ref.read(dietPreferencesProvider.future) ??
+              const DietPreferences();
+      final prompt = _buildPrompt(userData, prefs);
 
       final dio = Dio();
       final response = await dio.post(
@@ -332,8 +359,7 @@ Replace all "meal" placeholders with real personalized meal names. Keep calories
         });
       } else {
         debugPrint('❌ Groq error: ${response.data}');
-        final userData2 = await _getUserData();
-        final fallback = _getFallbackPlan(userData2);
+        final fallback = _getFallbackPlan(userData);
         setState(() {
           _mealPlan = fallback;
           _selectedDay = (fallback['days'] as List).first['day'].toString();
@@ -455,7 +481,7 @@ Replace all "meal" placeholders with real personalized meal names. Keep calories
                   ),
                   const SizedBox(height: 8),
                   const Text(
-                    'Get a personalized 7-day meal plan based on your goals and food preferences.',
+                    'Get a personalized 7-day meal plan based on your goals, cuisine, and dietary needs.',
                     style: TextStyle(
                       color: Colors.white70,
                       fontSize: 13,
@@ -768,6 +794,9 @@ class _MealPlanCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = context.appColors;
+    final prep = meal['prep'];
+    final prepSteps = prep is List ? prep.cast<String>() : const <String>[];
+
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
@@ -875,6 +904,21 @@ class _MealPlanCard extends StatelessWidget {
                     ),
                   ],
                 ),
+                if (prepSteps.isNotEmpty) ...[
+                  const SizedBox(height: 12),
+                  Divider(height: 1, color: colors.divider),
+                  const SizedBox(height: 10),
+                  ...prepSteps.asMap().entries.map((e) => Padding(
+                    padding: const EdgeInsets.only(bottom: 4),
+                    child: Text(
+                      '${e.key + 1}. ${e.value}',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: colors.textSecondary,
+                      ),
+                    ),
+                  )),
+                ],
               ],
             ),
           ),
