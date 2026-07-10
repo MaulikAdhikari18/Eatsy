@@ -4,6 +4,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/utils/calorie_calculator.dart';
+import '../../preferences/controllers/diet_preferences_controller.dart';
 
 class GoalsScreen extends ConsumerStatefulWidget {
   const GoalsScreen({super.key});
@@ -19,15 +21,34 @@ class _GoalsScreenState extends ConsumerState<GoalsScreen> {
   final _fatController = TextEditingController();
   final _weightGoalController = TextEditingController();
   final _currentWeightController = TextEditingController();
+  final _ageController = TextEditingController();
+  final _heightController = TextEditingController();
+
   bool _isLoading = false;
   bool _isSaving = false;
+  bool _isCalculating = false;
   List<Map<String, dynamic>> _weightLogs = [];
   String _selectedGoalType = 'lose';
+  String _selectedGender = 'female';
+  String _selectedActivityLevel = 'moderate';
 
   final List<Map<String, String>> _goalTypes = [
     {'key': 'lose', 'label': 'Lose Weight', 'icon': '📉'},
     {'key': 'maintain', 'label': 'Maintain', 'icon': '⚖️'},
     {'key': 'gain', 'label': 'Gain Weight', 'icon': '📈'},
+  ];
+
+  final List<Map<String, String>> _genders = [
+    {'key': 'female', 'label': 'Female'},
+    {'key': 'male', 'label': 'Male'},
+    {'key': 'other', 'label': 'Other'},
+  ];
+
+  final List<Map<String, String>> _activityLevels = [
+    {'key': 'sedentary', 'label': 'Sedentary'},
+    {'key': 'light', 'label': 'Light'},
+    {'key': 'moderate', 'label': 'Moderate'},
+    {'key': 'active', 'label': 'Active'},
   ];
 
   @override
@@ -45,6 +66,8 @@ class _GoalsScreenState extends ConsumerState<GoalsScreen> {
     _fatController.dispose();
     _weightGoalController.dispose();
     _currentWeightController.dispose();
+    _ageController.dispose();
+    _heightController.dispose();
     super.dispose();
   }
 
@@ -72,6 +95,11 @@ class _GoalsScreenState extends ConsumerState<GoalsScreen> {
             (goals['fat_goal'] ?? 65).toString();
         _weightGoalController.text =
             (goals['weight_goal'] ?? '').toString();
+        _ageController.text = (goals['age'] ?? '').toString();
+        _heightController.text = (goals['height_cm'] ?? '').toString();
+        _selectedGender = goals['gender']?.toString() ?? 'female';
+        _selectedActivityLevel =
+            goals['activity_level']?.toString() ?? 'moderate';
       } else {
         // Set defaults
         _calorieController.text = '2000';
@@ -126,6 +154,10 @@ class _GoalsScreenState extends ConsumerState<GoalsScreen> {
         'carbs_goal': double.tryParse(_carbsController.text) ?? 250,
         'fat_goal': double.tryParse(_fatController.text) ?? 65,
         'weight_goal': double.tryParse(_weightGoalController.text) ?? 0,
+        'age': int.tryParse(_ageController.text),
+        'height_cm': double.tryParse(_heightController.text),
+        'gender': _selectedGender,
+        'activity_level': _selectedActivityLevel,
       };
 
       if (existing != null) {
@@ -186,6 +218,79 @@ class _GoalsScreenState extends ConsumerState<GoalsScreen> {
           SnackBar(content: Text('Error logging weight: $e')),
         );
       }
+    }
+  }
+
+  /// Runs the BMR → TDEE → calorie target → macro pipeline (Section 4.1)
+  /// and pre-fills the Daily Targets fields below. Nothing is saved until
+  /// the user taps "Save Goals" — this only sets smart defaults.
+  Future<void> _calculateTargets() async {
+    final age = int.tryParse(_ageController.text);
+    final height = double.tryParse(_heightController.text);
+
+    if (age == null || height == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Enter your age and height first'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
+
+    // Use the most recent logged weight; fall back to the current-weight
+    // input field if the user just typed one but hasn't tapped "Log" yet.
+    double? currentWeight;
+    if (_weightLogs.isNotEmpty) {
+      currentWeight = (_weightLogs.first['weight'] as num?)?.toDouble();
+    }
+    currentWeight ??= double.tryParse(_currentWeightController.text);
+
+    if (currentWeight == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Log your current weight below first'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
+
+    setState(() => _isCalculating = true);
+    try {
+      // Pull diet type / medical conditions from the preferences we
+      // collected earlier, so keto/diabetic macro adjustments apply.
+      final prefs = await ref.read(dietPreferencesProvider.future);
+
+      final targets = CalorieCalculator.calculateFullTargets(
+        weightKg: currentWeight,
+        heightCm: height,
+        age: age,
+        gender: _selectedGender,
+        activityLevel: _selectedActivityLevel,
+        goalType: _selectedGoalType,
+        dietType: prefs?.dietType ?? 'no_restriction',
+        medicalConditions: prefs?.medicalConditions ?? [],
+      );
+
+      setState(() {
+        _calorieController.text = targets.calories.toString();
+        _proteinController.text = targets.proteinG.toInt().toString();
+        _carbsController.text = targets.carbsG.toInt().toString();
+        _fatController.text = targets.fatG.toInt().toString();
+      });
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+                'Targets calculated from your profile — review below, then Save'),
+            backgroundColor: AppTheme.primary,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isCalculating = false);
     }
   }
 
@@ -321,6 +426,154 @@ class _GoalsScreenState extends ConsumerState<GoalsScreen> {
 
             const SizedBox(height: 24),
 
+            // Body Profile — needed for BMR/TDEE calculation
+            Text(
+              'Body Profile',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: colors.textPrimary,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              'Used to calculate your personalized calorie & macro targets',
+              style: TextStyle(fontSize: 12, color: colors.textMuted),
+            ),
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: colors.surface,
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: Column(
+                children: [
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _LabeledField(
+                          label: 'Age',
+                          controller: _ageController,
+                          suffix: 'yrs',
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: _LabeledField(
+                          label: 'Height',
+                          controller: _heightController,
+                          suffix: 'cm',
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text('Gender',
+                        style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w500,
+                            color: colors.textPrimary)),
+                  ),
+                  const SizedBox(height: 8),
+                  Row(
+                    children: _genders.map((g) {
+                      final isSelected = _selectedGender == g['key'];
+                      return Expanded(
+                        child: GestureDetector(
+                          onTap: () => setState(
+                                  () => _selectedGender = g['key']!),
+                          child: Container(
+                            margin: const EdgeInsets.only(right: 8),
+                            padding:
+                            const EdgeInsets.symmetric(vertical: 10),
+                            decoration: BoxDecoration(
+                              color: isSelected
+                                  ? AppTheme.primary
+                                  : colors.surfaceVariant,
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: Text(
+                              g['label']!,
+                              textAlign: TextAlign.center,
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w500,
+                                color: isSelected
+                                    ? Colors.white
+                                    : colors.textSecondary,
+                              ),
+                            ),
+                          ),
+                        ),
+                      );
+                    }).toList(),
+                  ),
+                  const SizedBox(height: 16),
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text('Activity Level',
+                        style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w500,
+                            color: colors.textPrimary)),
+                  ),
+                  const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: _activityLevels.map((level) {
+                      final isSelected =
+                          _selectedActivityLevel == level['key'];
+                      return GestureDetector(
+                        onTap: () => setState(() =>
+                        _selectedActivityLevel = level['key']!),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 14, vertical: 8),
+                          decoration: BoxDecoration(
+                            color: isSelected
+                                ? AppTheme.primary
+                                : colors.surfaceVariant,
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                          child: Text(
+                            level['label']!,
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w500,
+                              color: isSelected
+                                  ? Colors.white
+                                  : colors.textSecondary,
+                            ),
+                          ),
+                        ),
+                      );
+                    }).toList(),
+                  ),
+                  const SizedBox(height: 16),
+                  OutlinedButton.icon(
+                    onPressed: _isCalculating ? null : _calculateTargets,
+                    icon: _isCalculating
+                        ? const SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                        : const Icon(Icons.calculate_outlined, size: 18),
+                    label: const Text('Calculate My Targets'),
+                    style: OutlinedButton.styleFrom(
+                      minimumSize: const Size(double.infinity, 46),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+            const SizedBox(height: 24),
+
             // Calorie & Macro Goals
             Text(
               'Daily Targets',
@@ -329,6 +582,11 @@ class _GoalsScreenState extends ConsumerState<GoalsScreen> {
                 fontWeight: FontWeight.bold,
                 color: colors.textPrimary,
               ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              'Auto-filled by the calculator above — edit anytime',
+              style: TextStyle(fontSize: 12, color: colors.textMuted),
             ),
             const SizedBox(height: 12),
             Container(
@@ -503,6 +761,44 @@ class _GoalsScreenState extends ConsumerState<GoalsScreen> {
           ],
         ),
       ),
+    );
+  }
+}
+
+class _LabeledField extends StatelessWidget {
+  final String label;
+  final TextEditingController controller;
+  final String suffix;
+
+  const _LabeledField({
+    required this.label,
+    required this.controller,
+    required this.suffix,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.appColors;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(label,
+            style: TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w500,
+                color: colors.textPrimary)),
+        const SizedBox(height: 6),
+        TextField(
+          controller: controller,
+          keyboardType: TextInputType.number,
+          decoration: InputDecoration(
+            suffixText: suffix,
+            suffixStyle: TextStyle(color: colors.textMuted, fontSize: 12),
+            contentPadding:
+            const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          ),
+        ),
+      ],
     );
   }
 }
