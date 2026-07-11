@@ -42,6 +42,7 @@ class _DietPreferencesScreenState
   }
 
   Future<void> _save() async {
+    final colors = context.appColors;
     setState(() => _isSaving = true);
     final prefs = DietPreferences(
       cuisines: _selectedCuisines,
@@ -58,10 +59,13 @@ class _DietPreferencesScreenState
 
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text(success
-            ? 'Diet preferences saved!'
-            : 'Error saving preferences — please try again'),
-        backgroundColor: success ? AppTheme.primary : Colors.red,
+        content: Text(
+          success
+              ? 'Diet preferences saved!'
+              : 'Error saving preferences — please try again',
+          style: const TextStyle(color: Colors.white),
+        ),
+        backgroundColor: success ? colors.labelCard : colors.fat,
       ),
     );
     if (success) Navigator.pop(context);
@@ -78,39 +82,56 @@ class _DietPreferencesScreenState
     return Scaffold(
       backgroundColor: colors.background,
       appBar: AppBar(
-        title: Text('Diet Preferences',
-            style: TextStyle(
-                color: colors.textPrimary,
-                fontWeight: FontWeight.w600,
-                fontSize: 18)),
-        backgroundColor: colors.surface,
-        elevation: 0,
+        title: const Text('Diet Preferences'),
       ),
       body: prefsAsync.isLoading && !_initialized
-          ? const Center(
-          child: CircularProgressIndicator(color: AppTheme.primary))
+          ? Center(
+          child: CircularProgressIndicator(color: colors.accent))
           : SingleChildScrollView(
         padding: const EdgeInsets.all(20),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              'These personalize your AI-generated meal plan — '
-                  'cuisine, allergies, and any dietary or medical '
-                  'considerations get factored into every plan we generate.',
-              style: TextStyle(color: colors.textSecondary, fontSize: 13, height: 1.4),
+            // Intro — framed like the mono eyebrow tags used everywhere
+            // else, so this reads as part of the same design system
+            // rather than a plain paragraph.
+            Container(
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: colors.surface,
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: colors.divider),
+              ),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Icon(Icons.info_outline, size: 18, color: colors.accent),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      'These personalize your AI-generated meal plan — '
+                          'cuisine, allergies, and any dietary or medical '
+                          'considerations get factored into every plan we generate.',
+                      style: TextStyle(
+                          color: colors.textSecondary,
+                          fontSize: 13,
+                          height: 1.4),
+                    ),
+                  ),
+                ],
+              ),
             ),
             const SizedBox(height: 28),
 
             _SectionLabel('🌏 Cuisines you enjoy', colors),
             const SizedBox(height: 4),
-            Text('Select all that apply',
-                style: TextStyle(color: colors.textMuted, fontSize: 12)),
+            _SectionHint('SELECT ALL THAT APPLY', colors),
             const SizedBox(height: 12),
             _ChipGroup(
               options: DietPreferenceOptions.cuisines,
               selected: _selectedCuisines,
               onToggle: (v) => _toggle(_selectedCuisines, v),
+              chipColor: colors.protein,
             ),
 
             const SizedBox(height: 28),
@@ -129,19 +150,21 @@ class _DietPreferencesScreenState
                         horizontal: 16, vertical: 10),
                     decoration: BoxDecoration(
                       color: isSelected
-                          ? AppTheme.primary
+                          ? colors.labelCard
                           : colors.surfaceVariant,
                       borderRadius: BorderRadius.circular(20),
                       border: Border.all(
                         color: isSelected
-                            ? AppTheme.primary
+                            ? colors.labelCard
                             : colors.divider,
                       ),
                     ),
                     child: Text(
                       type['label']!,
                       style: TextStyle(
-                        color: isSelected ? Colors.white : colors.textSecondary,
+                        color: isSelected
+                            ? Colors.white
+                            : colors.textSecondary,
                         fontWeight: FontWeight.w500,
                         fontSize: 13,
                       ),
@@ -154,38 +177,38 @@ class _DietPreferencesScreenState
             const SizedBox(height: 28),
             _SectionLabel('⚠️ Allergies / intolerances', colors),
             const SizedBox(height: 4),
-            Text('We\'ll exclude these from every plan',
-                style: TextStyle(color: colors.textMuted, fontSize: 12)),
+            _SectionHint("WE'LL EXCLUDE THESE FROM EVERY PLAN", colors),
             const SizedBox(height: 12),
             _ChipGroup(
               options: DietPreferenceOptions.allergies,
               selected: _selectedAllergies,
               onToggle: (v) => _toggle(_selectedAllergies, v),
-              chipColor: const Color(0xFFE53935),
+              chipColor: colors.fat,
             ),
 
             const SizedBox(height: 28),
             _SectionLabel('🩺 Known medical conditions', colors),
             const SizedBox(height: 4),
-            Text('Optional — helps us tailor sodium, sugar & GI focus',
-                style: TextStyle(color: colors.textMuted, fontSize: 12)),
+            _SectionHint(
+                'OPTIONAL — HELPS US TAILOR SODIUM, SUGAR & GI FOCUS',
+                colors),
             const SizedBox(height: 12),
             _ChipGroup(
               options: DietPreferenceOptions.medicalConditions,
               selected: _selectedConditions,
               onToggle: (v) => _toggle(_selectedConditions, v),
-              chipColor: const Color(0xFF8E24AA),
+              chipColor: colors.dinner,
             ),
 
             const SizedBox(height: 32),
             ElevatedButton(
               onPressed: _isSaving ? null : _save,
               child: _isSaving
-                  ? const SizedBox(
+                  ? SizedBox(
                 height: 20,
                 width: 20,
                 child: CircularProgressIndicator(
-                  color: Colors.white,
+                  color: colors.accentOnColor,
                   strokeWidth: 2,
                 ),
               )
@@ -210,8 +233,28 @@ class _SectionLabel extends StatelessWidget {
       text,
       style: TextStyle(
         fontSize: 16,
-        fontWeight: FontWeight.bold,
+        fontWeight: FontWeight.w800,
         color: colors.textPrimary,
+      ),
+    );
+  }
+}
+
+/// Small mono uppercase hint text — same eyebrow-label treatment used for
+/// field labels and data tags elsewhere in the app.
+class _SectionHint extends StatelessWidget {
+  final String text;
+  final AppColors colors;
+  const _SectionHint(this.text, this.colors);
+
+  @override
+  Widget build(BuildContext context) {
+    return Text(
+      text,
+      style: AppFonts.mono(
+        fontSize: 10,
+        color: colors.textMuted,
+        letterSpacing: 0.6,
       ),
     );
   }
@@ -227,7 +270,7 @@ class _ChipGroup extends StatelessWidget {
     required this.options,
     required this.selected,
     required this.onToggle,
-    this.chipColor = AppTheme.primary,
+    required this.chipColor,
   });
 
   @override
@@ -244,7 +287,7 @@ class _ChipGroup extends StatelessWidget {
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
             decoration: BoxDecoration(
               color: isSelected
-                  ? chipColor.withOpacity(0.12)
+                  ? chipColor.withOpacity(0.14)
                   : colors.surfaceVariant,
               borderRadius: BorderRadius.circular(20),
               border: Border.all(
