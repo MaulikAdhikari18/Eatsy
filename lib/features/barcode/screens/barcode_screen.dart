@@ -5,6 +5,11 @@ import '../../../core/services/fatsecret_service.dart';
 import 'package:image_picker/image_picker.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../shared/widgets/receipt_decorations.dart';
+
+// Every color below comes from context.appColors (colors.*), same as
+// Dashboard / Scan / Food Log. AppTheme is only imported for AppFonts.mono
+// — there is no AppTheme.primary anywhere in this file.
 
 class BarcodeScreen extends StatefulWidget {
   const BarcodeScreen({super.key});
@@ -43,24 +48,10 @@ class _BarcodeScreenState extends State<BarcodeScreen> {
         if (barcode.rawValue != null) {
           await _onBarcodeDetected(BarcodeCapture(barcodes: [barcode]));
         } else {
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('No barcode found in image. Try another photo.'),
-                backgroundColor: Colors.orange,
-              ),
-            );
-          }
+          _showWarningSnack('No barcode found in image. Try another photo.');
         }
       } else {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('No barcode found in image. Try another photo.'),
-              backgroundColor: Colors.orange,
-            ),
-          );
-        }
+        _showWarningSnack('No barcode found in image. Try another photo.');
       }
     } catch (e) {
       if (mounted) {
@@ -69,6 +60,17 @@ class _BarcodeScreenState extends State<BarcodeScreen> {
         );
       }
     }
+  }
+
+  void _showWarningSnack(String message) {
+    if (!mounted) return;
+    final colors = context.appColors;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message, style: const TextStyle(color: Colors.white)),
+        backgroundColor: colors.carbs,
+      ),
+    );
   }
 
   Future<void> _onBarcodeDetected(BarcodeCapture capture) async {
@@ -84,12 +86,8 @@ class _BarcodeScreenState extends State<BarcodeScreen> {
       if (food != null && mounted) {
         _showFoodResult(food);
       } else {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Product not found in database')),
-          );
-          setState(() => _isScanned = false);
-        }
+        _showWarningSnack('Product not found in database');
+        if (mounted) setState(() => _isScanned = false);
       }
     } catch (e) {
       if (mounted) {
@@ -111,144 +109,104 @@ class _BarcodeScreenState extends State<BarcodeScreen> {
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
       builder: (context) => Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Handle bar
-            Center(
-              child: Container(
-                width: 40,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: colors.divider,
-                  borderRadius: BorderRadius.circular(2),
+        padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Handle bar
+              Center(
+                child: Container(
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: colors.divider,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
                 ),
               ),
-            ),
-            const SizedBox(height: 20),
+              const SizedBox(height: 16),
 
-            // Food name
-            Text(
-              food['food_name'],
-              style: TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-                color: colors.textPrimary,
-              ),
-            ),
-            const SizedBox(height: 16),
+              // Product card — same dark "nutrition facts" header
+              // treatment (barcode strip, mono eyebrow, zigzag tear,
+              // macro chip footer) as the Scan screen's result card,
+              // since this is the same moment — a product just got
+              // identified — via a different input method.
+              _ProductResultCard(food: food),
 
-            // Nutrition info
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: colors.surfaceVariant,
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceAround,
-                children: [
-                  _NutritionBadge(
-                    label: 'Calories',
-                    value: '${food['calories'].toInt()}',
-                    unit: 'kcal',
-                    color: AppTheme.primary,
-                  ),
-                  _NutritionBadge(
-                    label: 'Protein',
-                    value: '${food['protein']}',
-                    unit: 'g',
-                    color: const Color(0xFFE53935),
-                  ),
-                  _NutritionBadge(
-                    label: 'Carbs',
-                    value: '${food['carbs']}',
-                    unit: 'g',
-                    color: const Color(0xFFFB8C00),
-                  ),
-                  _NutritionBadge(
-                    label: 'Fat',
-                    value: '${food['fat']}',
-                    unit: 'g',
-                    color: const Color(0xFF8E24AA),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 20),
+              const SizedBox(height: 20),
 
-            // Meal type selector
-            Text(
-              'Add to meal',
-              style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14, color: colors.textPrimary),
-            ),
-            const SizedBox(height: 10),
-            SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: Row(
-                children: _mealTypes.map((meal) {
-                  final isSelected = _selectedMealType == meal;
-                  return GestureDetector(
-                    onTap: () => setState(() => _selectedMealType = meal),
-                    child: Container(
-                      margin: const EdgeInsets.only(right: 8),
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 8,
-                      ),
-                      decoration: BoxDecoration(
-                        color: isSelected
-                            ? AppTheme.primary
-                            : colors.surfaceVariant,
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      child: Text(
-                        meal[0].toUpperCase() + meal.substring(1),
-                        style: TextStyle(
-                          color:
-                          isSelected ? Colors.white : colors.textSecondary,
-                          fontWeight: FontWeight.w500,
-                          fontSize: 13,
+              // Meal type selector
+              Text(
+                'Add to meal',
+                style: TextStyle(
+                    fontWeight: FontWeight.w700,
+                    fontSize: 14,
+                    color: colors.textPrimary),
+              ),
+              const SizedBox(height: 10),
+              SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: Row(
+                  children: _mealTypes.map((meal) {
+                    final isSelected = _selectedMealType == meal;
+                    return GestureDetector(
+                      onTap: () => setState(() => _selectedMealType = meal),
+                      child: Container(
+                        margin: const EdgeInsets.only(right: 8),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 8,
+                        ),
+                        decoration: BoxDecoration(
+                          color: isSelected
+                              ? colors.labelCard
+                              : colors.surfaceVariant,
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: Text(
+                          meal[0].toUpperCase() + meal.substring(1),
+                          style: TextStyle(
+                            color: isSelected
+                                ? Colors.white
+                                : colors.textSecondary,
+                            fontWeight: FontWeight.w500,
+                            fontSize: 13,
+                          ),
                         ),
                       ),
-                    ),
-                  );
-                }).toList(),
+                    );
+                  }).toList(),
+                ),
               ),
-            ),
-            const SizedBox(height: 20),
+              const SizedBox(height: 20),
 
-            // Log button
-            ElevatedButton(
-              onPressed: _isLoading ? null : () => _logFood(food),
-              child: _isLoading
-                  ? const SizedBox(
-                height: 20,
-                width: 20,
-                child: CircularProgressIndicator(
-                  color: Colors.white,
-                  strokeWidth: 2,
-                ),
-              )
-                  : const Text('Add to Log'),
-            ),
-            const SizedBox(height: 8),
-            OutlinedButton(
-              onPressed: () {
-                Navigator.pop(context);
-                setState(() => _isScanned = false);
-              },
-              style: OutlinedButton.styleFrom(
-                minimumSize: const Size(double.infinity, 52),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
+              // Log button — inherits accent fill / accentOnColor text
+              // from ElevatedButtonThemeData.
+              ElevatedButton(
+                onPressed: _isLoading ? null : () => _logFood(food),
+                child: _isLoading
+                    ? SizedBox(
+                  height: 20,
+                  width: 20,
+                  child: CircularProgressIndicator(
+                    color: colors.accentOnColor,
+                    strokeWidth: 2,
+                  ),
+                )
+                    : const Text('Add to Log'),
               ),
-              child: const Text('Scan Again'),
-            ),
-          ],
+              const SizedBox(height: 8),
+              OutlinedButton(
+                onPressed: () {
+                  Navigator.pop(context);
+                  setState(() => _isScanned = false);
+                },
+                child: const Text('Scan Again'),
+              ),
+            ],
+          ),
         ),
       ),
     ).whenComplete(() => setState(() => _isScanned = false));
@@ -273,12 +231,14 @@ class _BarcodeScreenState extends State<BarcodeScreen> {
       });
 
       if (mounted) {
+        final colors = context.appColors;
         Navigator.pop(context);
         Navigator.pop(context);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('${food['food_name']} added!'),
-            backgroundColor: AppTheme.primary,
+            content: Text('${food['food_name']} added!',
+                style: const TextStyle(color: Colors.white)),
+            backgroundColor: colors.labelCard,
           ),
         );
       }
@@ -295,9 +255,12 @@ class _BarcodeScreenState extends State<BarcodeScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.appColors;
+
     // Intentionally kept black regardless of theme — this is a camera
     // viewfinder screen, not a content screen, and a black background
-    // is standard/expected UX for scanner overlays in both light and dark mode.
+    // is standard/expected UX for scanner overlays in both light and
+    // dark mode. Only the accent (viewfinder frame) is theme-aware.
     return Scaffold(
       backgroundColor: Colors.black,
       appBar: AppBar(
@@ -338,7 +301,7 @@ class _BarcodeScreenState extends State<BarcodeScreen> {
                   height: 260,
                   decoration: BoxDecoration(
                     border: Border.all(
-                      color: AppTheme.primary,
+                      color: colors.accent,
                       width: 3,
                     ),
                     borderRadius: BorderRadius.circular(16),
@@ -393,48 +356,120 @@ class _BarcodeScreenState extends State<BarcodeScreen> {
   }
 }
 
-class _NutritionBadge extends StatelessWidget {
-  final String label;
-  final String value;
-  final String unit;
-  final Color color;
-
-  const _NutritionBadge({
-    required this.label,
-    required this.value,
-    required this.unit,
-    required this.color,
-  });
+/// Mirrors the Scan screen's `_ScanResultCard`: dark label-card header
+/// with a decorative barcode strip, mono eyebrow, product name and
+/// calorie total, a zigzag torn edge, then a light footer with
+/// per-macro mono stats. Keeping this identical to Scan's result card
+/// (rather than a bespoke design) is deliberate — barcode and camera
+/// scanning are the same "product identified" moment for the user.
+class _ProductResultCard extends StatelessWidget {
+  final Map<String, dynamic> food;
+  const _ProductResultCard({required this.food});
 
   @override
   Widget build(BuildContext context) {
     final colors = context.appColors;
+    final calories = ((food['calories'] ?? 0) as num).toDouble();
+
     return Column(
       children: [
-        Text(
-          label,
-          style: TextStyle(
-            color: colors.textSecondary,
-            fontSize: 11,
+        ClipRRect(
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(18)),
+          child: Container(
+            color: colors.labelCard,
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                BarcodeStrip(color: colors.accent),
+                const SizedBox(height: 12),
+                Text(
+                  'PRODUCT SCANNED',
+                  style: AppFonts.mono(
+                    fontSize: 10,
+                    color: colors.accent,
+                    letterSpacing: 1,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  food['food_name']?.toString() ?? '',
+                  style: const TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  '${calories.toInt()} kcal',
+                  style: AppFonts.mono(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.white70,
+                  ),
+                ),
+                const SizedBox(height: 10),
+              ],
+            ),
           ),
         ),
-        const SizedBox(height: 4),
-        Text(
-          value,
-          style: TextStyle(
-            color: color,
-            fontSize: 18,
-            fontWeight: FontWeight.bold,
+        ZigzagEdge(color: colors.labelCard),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          decoration: BoxDecoration(
+            color: colors.surface,
+            border: Border.all(color: colors.divider),
+            borderRadius:
+            const BorderRadius.vertical(bottom: Radius.circular(18)),
           ),
-        ),
-        Text(
-          unit,
-          style: TextStyle(
-            color: colors.textMuted,
-            fontSize: 11,
+          child: Row(
+            children: [
+              _MacroChip(
+                label: 'PROTEIN',
+                value: '${((food['protein'] ?? 0) as num).toInt()}g',
+                color: colors.protein,
+              ),
+              _MacroChip(
+                label: 'CARBS',
+                value: '${((food['carbs'] ?? 0) as num).toInt()}g',
+                color: colors.carbs,
+              ),
+              _MacroChip(
+                label: 'FAT',
+                value: '${((food['fat'] ?? 0) as num).toInt()}g',
+                color: colors.fat,
+              ),
+            ],
           ),
         ),
       ],
+    );
+  }
+}
+
+class _MacroChip extends StatelessWidget {
+  final String label;
+  final String value;
+  final Color color;
+  const _MacroChip(
+      {required this.label, required this.value, required this.color});
+
+  @override
+  Widget build(BuildContext context) {
+    return Expanded(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(label,
+              style: AppFonts.mono(
+                  fontSize: 9, color: color, letterSpacing: 0.5)),
+          const SizedBox(height: 3),
+          Text(value,
+              style: AppFonts.mono(
+                  fontSize: 15, fontWeight: FontWeight.w600, color: color)),
+        ],
+      ),
     );
   }
 }
