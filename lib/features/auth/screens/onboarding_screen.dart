@@ -5,6 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../shared/widgets/receipt_decorations.dart';
 
 class OnboardingScreen extends ConsumerStatefulWidget {
   const OnboardingScreen({super.key});
@@ -161,7 +162,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
           children: [
             // Progress indicator
             Padding(
-              padding: const EdgeInsets.all(20),
+              padding: const EdgeInsets.fromLTRB(20, 16, 20, 4),
               child: Column(
                 children: [
                   Row(
@@ -172,7 +173,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                           height: 4,
                           decoration: BoxDecoration(
                             color: index <= _currentPage
-                                ? AppTheme.primary
+                                ? colors.accent
                                 : colors.divider,
                             borderRadius: BorderRadius.circular(2),
                           ),
@@ -180,15 +181,16 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                       );
                     }),
                   ),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 10),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Text(
-                        'Step ${_currentPage + 1} of 4',
-                        style: TextStyle(
+                        'STEP ${_currentPage + 1} OF 4',
+                        style: AppFonts.mono(
+                          fontSize: 11,
                           color: colors.textSecondary,
-                          fontSize: 12,
+                          letterSpacing: 1,
                         ),
                       ),
                       if (_currentPage > 0)
@@ -199,6 +201,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                             style: TextStyle(
                               color: colors.textSecondary,
                               fontSize: 12,
+                              fontWeight: FontWeight.w600,
                             ),
                           ),
                         ),
@@ -246,11 +249,11 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
               child: ElevatedButton(
                 onPressed: _isLoading ? null : _nextPage,
                 child: _isLoading
-                    ? const SizedBox(
+                    ? SizedBox(
                   height: 20,
                   width: 20,
                   child: CircularProgressIndicator(
-                    color: Colors.white,
+                    color: colors.accentOnColor,
                     strokeWidth: 2,
                   ),
                 )
@@ -274,49 +277,76 @@ class _WelcomePage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = context.appColors;
-    return Padding(
+    return SingleChildScrollView(
       padding: const EdgeInsets.all(24),
       child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Container(
-            width: 120,
-            height: 120,
-            decoration: BoxDecoration(
-              color: AppTheme.primary.withOpacity(0.1),
-              shape: BoxShape.circle,
-            ),
-            child: const Icon(
-              Icons.restaurant,
-              size: 60,
-              color: AppTheme.primary,
+          // Brand hero — same barcode-strip / zigzag-tear card used on
+          // Login, so onboarding opens with the same visual signature.
+          ClipRRect(
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(18)),
+            child: Container(
+              width: double.infinity,
+              color: colors.labelCard,
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+              child: Column(
+                children: [
+                  BarcodeStrip(color: colors.accent),
+                  const SizedBox(height: 16),
+                  Container(
+                    width: 64,
+                    height: 64,
+                    decoration: BoxDecoration(
+                      color: colors.accent,
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    child: Icon(Icons.restaurant,
+                        size: 32, color: colors.accentOnColor),
+                  ),
+                  const SizedBox(height: 14),
+                  const Text(
+                    'Welcome to Eatsy',
+                    style: TextStyle(
+                      fontSize: 24,
+                      fontWeight: FontWeight.w800,
+                      color: Colors.white,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    'YOUR NUTRITION JOURNEY STARTS HERE',
+                    style: AppFonts.mono(
+                      fontSize: 10,
+                      color: colors.accent,
+                      letterSpacing: 1.2,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                ],
+              ),
             ),
           ),
-          const SizedBox(height: 32),
+          ZigzagEdge(color: colors.labelCard),
+
+          const SizedBox(height: 28),
+
           Text(
-            'Welcome to Eatsy! 🎉',
+            "Let's set up your personal nutrition plan in just a few steps.",
             style: TextStyle(
-              fontSize: 28,
-              fontWeight: FontWeight.bold,
-              color: colors.textPrimary,
-            ),
-            textAlign: TextAlign.center,
-          ),
-          const SizedBox(height: 16),
-          Text(
-            'Let\'s set up your personal nutrition plan in just a few steps.',
-            style: TextStyle(
-              fontSize: 16,
+              fontSize: 15,
               color: colors.textSecondary,
               height: 1.5,
             ),
             textAlign: TextAlign.center,
           ),
-          const SizedBox(height: 40),
+
+          const SizedBox(height: 28),
+
           const _FeatureRow(icon: Icons.camera_alt, text: 'Scan food with AI camera'),
-          const SizedBox(height: 16),
+          const SizedBox(height: 12),
           const _FeatureRow(icon: Icons.pie_chart, text: 'Track calories & macros daily'),
-          const SizedBox(height: 16),
+          const SizedBox(height: 12),
           const _FeatureRow(icon: Icons.flag, text: 'Reach your personal goals'),
         ],
       ),
@@ -332,22 +362,45 @@ class _FeatureRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = context.appColors;
-    return Row(
-      children: [
-        Container(
-          padding: const EdgeInsets.all(10),
-          decoration: BoxDecoration(
-            color: AppTheme.primary.withOpacity(0.1),
-            borderRadius: BorderRadius.circular(12),
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: colors.surface,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: colors.divider),
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: colors.accent.withOpacity(0.15),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Icon(icon, color: colors.labelCard, size: 20),
           ),
-          child: const Icon(Icons.camera_alt, color: AppTheme.primary, size: 22),
-        ),
-        const SizedBox(width: 16),
-        Text(
-          text,
-          style: TextStyle(fontSize: 15, fontWeight: FontWeight.w500, color: colors.textPrimary),
-        ),
-      ],
+          const SizedBox(width: 14),
+          Expanded(
+            child: Text(
+              text,
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w500,
+                color: colors.textPrimary,
+              ),
+            ),
+          ),
+          Container(
+            width: 22,
+            height: 22,
+            decoration: BoxDecoration(
+              color: colors.accent,
+              shape: BoxShape.circle,
+            ),
+            child: Icon(Icons.check, size: 14, color: colors.accentOnColor),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -367,18 +420,18 @@ class _GoalTypePage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = context.appColors;
-    return Padding(
+    return SingleChildScrollView(
       padding: const EdgeInsets.all(24),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'What\'s your goal?',
-            style: TextStyle(fontSize: 26, fontWeight: FontWeight.bold, color: colors.textPrimary),
+            "What's your goal?",
+            style: TextStyle(fontSize: 26, fontWeight: FontWeight.w800, color: colors.textPrimary),
           ),
           const SizedBox(height: 8),
           Text(
-            'We\'ll customize your daily calorie target based on this.',
+            "We'll customize your daily calorie target based on this.",
             style: TextStyle(color: colors.textSecondary, fontSize: 14),
           ),
           const SizedBox(height: 32),
@@ -391,13 +444,11 @@ class _GoalTypePage extends StatelessWidget {
                 padding: const EdgeInsets.all(20),
                 decoration: BoxDecoration(
                   color: isSelected
-                      ? AppTheme.primary.withOpacity(0.08)
+                      ? colors.accent.withOpacity(0.10)
                       : colors.surface,
                   borderRadius: BorderRadius.circular(16),
                   border: Border.all(
-                    color: isSelected
-                        ? AppTheme.primary
-                        : colors.divider,
+                    color: isSelected ? colors.accent : colors.divider,
                     width: isSelected ? 2 : 1,
                   ),
                 ),
@@ -412,11 +463,10 @@ class _GoalTypePage extends StatelessWidget {
                           Text(
                             goal['label'],
                             style: TextStyle(
-                              fontWeight: FontWeight.w700,
+                              fontWeight:
+                              isSelected ? FontWeight.w800 : FontWeight.w700,
                               fontSize: 16,
-                              color: isSelected
-                                  ? AppTheme.primary
-                                  : colors.textPrimary,
+                              color: colors.textPrimary,
                             ),
                           ),
                           const SizedBox(height: 4),
@@ -431,8 +481,16 @@ class _GoalTypePage extends StatelessWidget {
                       ),
                     ),
                     if (isSelected)
-                      const Icon(Icons.check_circle,
-                          color: AppTheme.primary),
+                      Container(
+                        width: 26,
+                        height: 26,
+                        decoration: BoxDecoration(
+                          color: colors.accent,
+                          shape: BoxShape.circle,
+                        ),
+                        child: Icon(Icons.check,
+                            size: 16, color: colors.accentOnColor),
+                      ),
                   ],
                 ),
               ),
@@ -463,14 +521,14 @@ class _WeightPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = context.appColors;
-    return Padding(
+    return SingleChildScrollView(
       padding: const EdgeInsets.all(24),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
             'Your weight',
-            style: TextStyle(fontSize: 26, fontWeight: FontWeight.bold, color: colors.textPrimary),
+            style: TextStyle(fontSize: 26, fontWeight: FontWeight.w800, color: colors.textPrimary),
           ),
           const SizedBox(height: 8),
           Text(
@@ -479,31 +537,34 @@ class _WeightPage extends StatelessWidget {
           ),
           const SizedBox(height: 32),
 
-          // Current weight
+          // Current weight — uses the same "protein" green shown on
+          // Dashboard's macro cards, since this is a "where you are now"
+          // reading, same semantic role as a progress figure.
           _WeightCard(
-            label: 'Current Weight',
+            label: 'CURRENT WEIGHT',
             value: currentWeight,
             unit: 'kg',
             onChanged: onCurrentChanged,
             min: 30,
             max: 200,
-            color: AppTheme.primary,
+            color: colors.protein,
           ),
           const SizedBox(height: 20),
 
-          // Target weight
+          // Target weight — "carbs" amber, reading as a target/goal figure
+          // rather than a live reading, matching that color's role elsewhere.
           _WeightCard(
             label: goalType == 'lose'
-                ? 'Target Weight'
+                ? 'TARGET WEIGHT'
                 : goalType == 'gain'
-                ? 'Goal Weight'
-                : 'Maintain Weight',
+                ? 'GOAL WEIGHT'
+                : 'MAINTAIN WEIGHT',
             value: targetWeight,
             unit: 'kg',
             onChanged: onTargetChanged,
             min: 30,
             max: 200,
-            color: const Color(0xFF2196F3),
+            color: colors.carbs,
           ),
         ],
       ),
@@ -538,17 +599,18 @@ class _WeightCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: colors.surface,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: color.withOpacity(0.3)),
+        border: Border.all(color: color.withOpacity(0.35)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
             label,
-            style: TextStyle(
-              color: color,
+            style: AppFonts.mono(
+              fontSize: 11,
               fontWeight: FontWeight.w600,
-              fontSize: 14,
+              color: color,
+              letterSpacing: 0.8,
             ),
           ),
           const SizedBox(height: 12),
@@ -566,9 +628,9 @@ class _WeightCard extends StatelessWidget {
               const SizedBox(width: 16),
               Text(
                 '${value.toStringAsFixed(1)} $unit',
-                style: TextStyle(
-                  fontSize: 28,
-                  fontWeight: FontWeight.bold,
+                style: AppFonts.mono(
+                  fontSize: 26,
+                  fontWeight: FontWeight.w700,
                   color: color,
                 ),
               ),
@@ -612,14 +674,14 @@ class _ActivityPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = context.appColors;
-    return Padding(
+    return SingleChildScrollView(
       padding: const EdgeInsets.all(24),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
             'Activity level',
-            style: TextStyle(fontSize: 26, fontWeight: FontWeight.bold, color: colors.textPrimary),
+            style: TextStyle(fontSize: 26, fontWeight: FontWeight.w800, color: colors.textPrimary),
           ),
           const SizedBox(height: 8),
           Text(
@@ -636,13 +698,11 @@ class _ActivityPage extends StatelessWidget {
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
                   color: isSelected
-                      ? AppTheme.primary.withOpacity(0.08)
+                      ? colors.accent.withOpacity(0.10)
                       : colors.surface,
                   borderRadius: BorderRadius.circular(16),
                   border: Border.all(
-                    color: isSelected
-                        ? AppTheme.primary
-                        : colors.divider,
+                    color: isSelected ? colors.accent : colors.divider,
                     width: isSelected ? 2 : 1,
                   ),
                 ),
@@ -660,11 +720,10 @@ class _ActivityPage extends StatelessWidget {
                           Text(
                             level['label'],
                             style: TextStyle(
-                              fontWeight: FontWeight.w700,
+                              fontWeight:
+                              isSelected ? FontWeight.w800 : FontWeight.w700,
                               fontSize: 15,
-                              color: isSelected
-                                  ? AppTheme.primary
-                                  : colors.textPrimary,
+                              color: colors.textPrimary,
                             ),
                           ),
                           Text(
@@ -678,8 +737,16 @@ class _ActivityPage extends StatelessWidget {
                       ),
                     ),
                     if (isSelected)
-                      const Icon(Icons.check_circle,
-                          color: AppTheme.primary, size: 20),
+                      Container(
+                        width: 22,
+                        height: 22,
+                        decoration: BoxDecoration(
+                          color: colors.accent,
+                          shape: BoxShape.circle,
+                        ),
+                        child: Icon(Icons.check,
+                            size: 14, color: colors.accentOnColor),
+                      ),
                   ],
                 ),
               ),

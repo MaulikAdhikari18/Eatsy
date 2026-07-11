@@ -76,37 +76,60 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
     }
   }
 
+  Widget _fieldLabel(String text, AppColors colors) {
+    return Text(
+      text,
+      style: AppFonts.mono(
+        fontSize: 11,
+        color: colors.textSecondary,
+        letterSpacing: 1,
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final colors = context.appColors;
 
     return Scaffold(
+      backgroundColor: colors.background,
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(24),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const SizedBox(height: 24),
+              const SizedBox(height: 8),
 
-              // Back button
+              // Back button — a small circular chip in the surface color,
+              // consistent with the rounded-chip language used for the
+              // avatar button on Dashboard rather than a bare icon.
               GestureDetector(
                 onTap: () => context.pop(),
-                child: Icon(Icons.arrow_back_ios, size: 20, color: colors.textPrimary),
+                child: Container(
+                  width: 38,
+                  height: 38,
+                  decoration: BoxDecoration(
+                    color: colors.surfaceVariant,
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Icon(Icons.arrow_back_ios_new,
+                      size: 16, color: colors.textPrimary),
+                ),
               ),
 
-              const SizedBox(height: 24),
+              const SizedBox(height: 28),
 
               // Title
               Text(
-                'Create Account',
+                'Create account',
                 style: TextStyle(
                   fontSize: 28,
-                  fontWeight: FontWeight.bold,
+                  fontWeight: FontWeight.w800,
                   color: colors.textPrimary,
                 ),
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: 6),
               Text(
                 'Start your nutrition journey today',
                 style: TextStyle(
@@ -118,10 +141,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
               const SizedBox(height: 32),
 
               // Full Name
-              Text(
-                'Full Name',
-                style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14, color: colors.textPrimary),
-              ),
+              _fieldLabel('FULL NAME', colors),
               const SizedBox(height: 8),
               TextField(
                 controller: _nameController,
@@ -132,30 +152,24 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                 ),
               ),
 
-              const SizedBox(height: 16),
+              const SizedBox(height: 20),
 
               // Email
-              Text(
-                'Email',
-                style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14, color: colors.textPrimary),
-              ),
+              _fieldLabel('EMAIL', colors),
               const SizedBox(height: 8),
               TextField(
                 controller: _emailController,
                 keyboardType: TextInputType.emailAddress,
                 decoration: const InputDecoration(
-                  hintText: 'Enter your email',
+                  hintText: 'you@example.com',
                   prefixIcon: Icon(Icons.email_outlined),
                 ),
               ),
 
-              const SizedBox(height: 16),
+              const SizedBox(height: 20),
 
               // Password
-              Text(
-                'Password',
-                style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14, color: colors.textPrimary),
-              ),
+              _fieldLabel('PASSWORD', colors),
               const SizedBox(height: 8),
               TextField(
                 controller: _passwordController,
@@ -175,13 +189,10 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                 ),
               ),
 
-              const SizedBox(height: 16),
+              const SizedBox(height: 20),
 
               // Confirm Password
-              Text(
-                'Confirm Password',
-                style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14, color: colors.textPrimary),
-              ),
+              _fieldLabel('CONFIRM PASSWORD', colors),
               const SizedBox(height: 8),
               TextField(
                 controller: _confirmPasswordController,
@@ -203,15 +214,16 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
 
               const SizedBox(height: 32),
 
-              // Sign Up button
+              // Sign Up button — inherits accent fill / accentOnColor text
+              // from ElevatedButtonThemeData, same as the Login screen.
               ElevatedButton(
                 onPressed: _isLoading ? null : _signUp,
                 child: _isLoading
-                    ? const SizedBox(
+                    ? SizedBox(
                   height: 20,
                   width: 20,
                   child: CircularProgressIndicator(
-                    color: Colors.white,
+                    color: colors.accentOnColor,
                     strokeWidth: 2,
                   ),
                 )
@@ -220,18 +232,28 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
 
               const SizedBox(height: 24),
 
-              // Login link
+              // Login link — mirrors the "Sign Up" treatment on the Login
+              // screen: textPrimary bold with a thin accent underline.
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Text('Already have an account? ', style: TextStyle(color: colors.textSecondary)),
+                  Text('Already have an account? ',
+                      style: TextStyle(color: colors.textSecondary)),
                   GestureDetector(
                     onTap: () => context.pop(),
-                    child: const Text(
-                      'Sign In',
-                      style: TextStyle(
-                        color: AppTheme.primary,
-                        fontWeight: FontWeight.w600,
+                    child: Container(
+                      padding: const EdgeInsets.only(bottom: 1),
+                      decoration: BoxDecoration(
+                        border: Border(
+                          bottom: BorderSide(color: colors.accent, width: 2),
+                        ),
+                      ),
+                      child: Text(
+                        'Sign In',
+                        style: TextStyle(
+                          color: colors.textPrimary,
+                          fontWeight: FontWeight.w700,
+                        ),
                       ),
                     ),
                   ),
