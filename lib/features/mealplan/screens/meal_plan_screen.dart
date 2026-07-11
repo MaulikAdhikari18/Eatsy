@@ -24,8 +24,83 @@ class MealPlanScreen extends ConsumerStatefulWidget {
 
 class _MealPlanScreenState extends ConsumerState<MealPlanScreen> {
   bool _isGenerating = false;
+  bool _isLoadingSaved = true;
   Map<String, dynamic>? _mealPlan;
   String _selectedDay = 'Day 1';
+
+  // Tracks which individual meal cards are mid-swap, keyed as
+  // "$day|$mealType", so only that one card shows a spinner instead of
+  // blocking the whole screen for a single-meal regeneration.
+  final Set<String> _swappingKeys = {};
+
+  @override
+  void initState() {
+    super.initState();
+    _loadSavedPlan();
+  }
+
+  /// Loads the most recently generated plan for this user, if one
+  /// exists, so the screen doesn't come up empty every time it's
+  /// reopened — this is the persistence half of the feature.
+  Future<void> _loadSavedPlan() async {
+    setState(() => _isLoadingSaved = true);
+    try {
+      final supabase = Supabase.instance.client;
+      final userId = supabase.auth.currentUser?.id;
+      if (userId == null) return;
+
+      final row = await supabase
+          .from('diet_plans')
+          .select()
+          .eq('user_id', userId)
+          .order('generated_at', ascending: false)
+          .limit(1)
+          .maybeSingle();
+
+      if (row != null && mounted) {
+        final plan = row['plan_json'] is String
+            ? jsonDecode(row['plan_json'] as String) as Map<String, dynamic>
+            : Map<String, dynamic>.from(row['plan_json'] as Map);
+        final firstDay = (plan['days'] as List).first;
+        setState(() {
+          _mealPlan = plan;
+          _selectedDay = firstDay['day'].toString();
+        });
+      }
+    } catch (e) {
+      debugPrint('❌ Error loading saved plan: $e');
+    } finally {
+      if (mounted) setState(() => _isLoadingSaved = false);
+    }
+  }
+
+  /// Saves (or updates) the current plan to Supabase so it survives
+  /// closing the app. Called after a full generation and after every
+  /// single-meal swap so the persisted copy never goes stale.
+  Future<void> _persistPlan(Map<String, dynamic> plan, DietPreferences prefs) async {
+    try {
+      final supabase = Supabase.instance.client;
+      final userId = supabase.auth.currentUser?.id;
+      if (userId == null) return;
+
+      final now = DateTime.now();
+      final weekStart = now.subtract(Duration(days: now.weekday - 1));
+      final firstDay = (plan['days'] as List).first as Map<String, dynamic>;
+
+      await supabase.from('diet_plans').insert({
+        'user_id': userId,
+        'week_start_date':
+        '${weekStart.year}-${weekStart.month.toString().padLeft(2, '0')}-${weekStart.day.toString().padLeft(2, '0')}',
+        'cuisine': prefs.cuisines.isEmpty ? 'Mixed' : prefs.cuisines.join(', '),
+        'calorie_target': firstDay['total_calories'],
+        'plan_json': plan,
+      });
+    } catch (e) {
+      debugPrint('❌ Error persisting plan: $e');
+      // Non-fatal — the plan still works locally for this session even
+      // if the save fails, so we don't interrupt the user with an error.
+    }
+  }
 
   // Note: PDF export always renders on a white page — that's standard for
   // printable documents and intentionally does NOT follow the app's theme.
@@ -205,9 +280,6 @@ class _MealPlanScreenState extends ConsumerState<MealPlanScreen> {
     };
   }
 
-  /// Builds the AI prompt following the Section 4.3 template, parameterized
-  /// with real diet preferences (cuisine, allergies, diet type, medical
-  /// conditions) — unchanged from the earlier implementation.
   String _buildPrompt(Map<String, dynamic> userData, DietPreferences prefs) {
     final goals = userData['goals'];
     final logs = userData['logs'] as List;
@@ -260,16 +332,51 @@ Generate all 7 days following this exact structure. Replace all placeholder valu
 ''';
   }
 
+  /// Builds a much smaller prompt asking for exactly ONE replacement
+  /// meal, targeting the same calorie/macro footprint as the meal
+  /// being swapped out, so the day's total doesn't drift.
+  String _buildSwapPrompt(
+      Map<String, dynamic> currentMeal,
+      String mealType,
+      DietPreferences prefs,
+      ) {
+    final cuisineList = prefs.cuisines.isEmpty ? 'Mixed' : prefs.cuisines.join(', ');
+    final allergyList = prefs.allergies.isEmpty ? 'None' : prefs.allergies.join(', ');
+    final conditionList =
+    prefs.medicalConditions.isEmpty ? 'None' : prefs.medicalConditions.join(', ');
+    final dietTypeLabel = DietPreferenceOptions.dietTypes.firstWhere(
+          (d) => d['key'] == prefs.dietType,
+      orElse: () => {'label': 'No Restriction'},
+    )['label'];
+    final referenceDishes = CuisineReference.referenceBlockFor(prefs.cuisines);
+
+    return '''
+Suggest ONE alternative $mealType dish to replace "${currentMeal['name']}".
+
+Rules:
+(1) Target roughly the same nutrition: ~${currentMeal['calories']} kcal, protein ${currentMeal['protein']}g, carbs ${currentMeal['carbs']}g, fat ${currentMeal['fat']}g (±15% is fine).
+(2) Cuisine: $cuisineList. Reference dishes: $referenceDishes
+(3) Exclude entirely: $allergyList.
+(4) Diet type: $dietTypeLabel.
+(5) Medical considerations: $conditionList.
+(6) Must be a genuinely different dish from "${currentMeal['name']}" — not a trivial rename.
+(7) Include up to 3 short prep steps.
+(8) Output strictly as JSON, no extra text, no markdown fences:
+{"name":"dish name","calories":123,"protein":12,"carbs":34,"fat":5,"prep":["step 1","step 2"]}
+''';
+  }
+
   Future<void> _generateMealPlan() async {
     setState(() {
       _isGenerating = true;
       _mealPlan = null;
     });
 
+    final prefs =
+        await ref.read(dietPreferencesProvider.future) ?? const DietPreferences();
+
     try {
       final userData = await _getUserData();
-      final prefs =
-          await ref.read(dietPreferencesProvider.future) ?? const DietPreferences();
       final prompt = _buildPrompt(userData, prefs);
 
       final dio = Dio();
@@ -296,23 +403,23 @@ Generate all 7 days following this exact structure. Replace all placeholder valu
         },
       );
 
+      Map<String, dynamic> plan;
       if (response.statusCode == 200) {
         final content = response.data['choices'][0]['message']['content'] as String;
         final cleanJson = content.replaceAll('```json', '').replaceAll('```', '').trim();
-        final parsed = jsonDecode(cleanJson) as Map<String, dynamic>;
-        final firstDay = (parsed['days'] as List).first;
-        setState(() {
-          _mealPlan = parsed;
-          _selectedDay = firstDay['day'].toString();
-        });
+        plan = jsonDecode(cleanJson) as Map<String, dynamic>;
       } else {
         debugPrint('❌ Groq error: ${response.data}');
-        final fallback = _getFallbackPlan(userData);
-        setState(() {
-          _mealPlan = fallback;
-          _selectedDay = (fallback['days'] as List).first['day'].toString();
-        });
+        plan = _getFallbackPlan(userData);
       }
+
+      final firstDay = (plan['days'] as List).first;
+      setState(() {
+        _mealPlan = plan;
+        _selectedDay = firstDay['day'].toString();
+      });
+
+      await _persistPlan(plan, prefs);
     } catch (e) {
       debugPrint('❌ Error: $e');
       final userData = await _getUserData();
@@ -321,8 +428,86 @@ Generate all 7 days following this exact structure. Replace all placeholder valu
         _mealPlan = fallback;
         _selectedDay = (fallback['days'] as List).first['day'].toString();
       });
+      await _persistPlan(fallback, prefs);
     } finally {
       if (mounted) setState(() => _isGenerating = false);
+    }
+  }
+
+  /// Regenerates just one meal (e.g. user doesn't like Tuesday's lunch)
+  /// instead of the whole week, then persists the updated plan.
+  Future<void> _swapMeal(String day, String mealType) async {
+    if (_mealPlan == null) return;
+    final key = '$day|$mealType';
+    setState(() => _swappingKeys.add(key));
+
+    try {
+      final days = _mealPlan!['days'] as List;
+      final dayData = days.firstWhere((d) => d['day'].toString() == day)
+      as Map<String, dynamic>;
+      final meals = dayData['meals'] as Map<String, dynamic>;
+      final currentMeal = meals[mealType] as Map<String, dynamic>;
+
+      final prefs =
+          await ref.read(dietPreferencesProvider.future) ?? const DietPreferences();
+      final prompt = _buildSwapPrompt(currentMeal, mealType, prefs);
+
+      final dio = Dio();
+      final response = await dio.post(
+        'https://api.groq.com/openai/v1/chat/completions',
+        options: Options(
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer ${AppConfig.groqApiKey}',
+          },
+          validateStatus: (status) => true,
+        ),
+        data: {
+          'model': 'llama-3.3-70b-versatile',
+          'max_tokens': 800,
+          'messages': [
+            {
+              'role': 'system',
+              'content':
+              'You are a professional nutritionist. Always respond with valid JSON only. No markdown, no explanation, just the JSON object.',
+            },
+            {'role': 'user', 'content': prompt}
+          ],
+        },
+      );
+
+      if (response.statusCode != 200) {
+        throw Exception('Groq error: ${response.data}');
+      }
+
+      final content = response.data['choices'][0]['message']['content'] as String;
+      final cleanJson = content.replaceAll('```json', '').replaceAll('```', '').trim();
+      final newMeal = jsonDecode(cleanJson) as Map<String, dynamic>;
+
+      setState(() {
+        meals[mealType] = newMeal;
+      });
+
+      await _persistPlan(_mealPlan!, prefs);
+
+      if (mounted) {
+        final colors = context.appColors;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Swapped in ${newMeal['name']}'),
+            backgroundColor: colors.accent,
+          ),
+        );
+      }
+    } catch (e) {
+      debugPrint('❌ Swap error: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Could not swap meal: $e')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _swappingKeys.remove(key));
     }
   }
 
@@ -427,42 +612,32 @@ Generate all 7 days following this exact structure. Replace all placeholder valu
 
     return Scaffold(
       backgroundColor: colors.background,
+      appBar: AppBar(title: const Text('Meal Plan')),
       body: SafeArea(
-        child: SingleChildScrollView(
+        child: _isLoadingSaved
+            ? Center(child: CircularProgressIndicator(color: colors.accent))
+            : SingleChildScrollView(
           padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Header row — title + PDF export (only enabled once a
-              // plan exists), matching the mockup's dashed "PDF" pill.
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    'Meal plan',
-                    style: TextStyle(
-                      fontSize: 24,
-                      fontWeight: FontWeight.w700,
-                      color: colors.textPrimary,
-                    ),
+              if (_mealPlan != null)
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: DashedButton(
+                    icon: Icons.file_download_outlined,
+                    label: 'PDF',
+                    color: colors.textPrimary,
+                    onTap: _exportToPdf,
                   ),
-                  if (_mealPlan != null)
-                    DashedButton(
-                      icon: Icons.file_download_outlined,
-                      label: 'PDF',
-                      color: colors.textPrimary,
-                      onTap: _exportToPdf,
-                    ),
-                ],
-              ),
+                ),
 
-              const SizedBox(height: 16),
+              if (_mealPlan != null) const SizedBox(height: 12),
 
-              if (_mealPlan == null && !_isGenerating) ...[
+              if (_mealPlan == null && !_isGenerating)
                 _EmptyPlanCard(onGenerate: _generateMealPlan),
-              ],
 
-              if (_isGenerating) ...[
+              if (_isGenerating)
                 Center(
                   child: Column(
                     children: [
@@ -477,10 +652,8 @@ Generate all 7 days following this exact structure. Replace all placeholder valu
                     ],
                   ),
                 ),
-              ],
 
               if (_mealPlan != null) ...[
-                // Day tabs
                 SingleChildScrollView(
                   scrollDirection: Axis.horizontal,
                   child: Row(
@@ -513,16 +686,15 @@ Generate all 7 days following this exact structure. Replace all placeholder valu
 
                 const SizedBox(height: 16),
 
-                // Selected day content
                 ...(_mealPlan!['days'] as List).map((dayData) {
                   if (dayData['day'].toString() != _selectedDay) return const SizedBox();
                   final meals = dayData['meals'] as Map<String, dynamic>;
                   final totalCals = dayData['total_calories'] ?? 0;
+                  final day = dayData['day'].toString();
 
                   return Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // Total for today banner
                       Container(
                         width: double.infinity,
                         padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
@@ -533,7 +705,7 @@ Generate all 7 days following this exact structure. Replace all placeholder valu
                         child: Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            Text(
+                            const Text(
                               'Total for today',
                               style: TextStyle(
                                 color: Colors.white70,
@@ -558,12 +730,15 @@ Generate all 7 days following this exact structure. Replace all placeholder valu
                       ...['breakfast', 'lunch', 'dinner', 'snack'].map((mealType) {
                         final meal = meals[mealType] as Map<String, dynamic>?;
                         if (meal == null) return const SizedBox();
+                        final key = '$day|$mealType';
                         return Padding(
                           padding: const EdgeInsets.only(bottom: 12),
                           child: _MealPlanCard(
                             mealType: mealType,
                             meal: meal,
+                            isSwapping: _swappingKeys.contains(key),
                             onLog: () => _logMeal(mealType, meal),
+                            onSwap: () => _swapMeal(day, mealType),
                           ),
                         );
                       }),
@@ -572,7 +747,7 @@ Generate all 7 days following this exact structure. Replace all placeholder valu
                       OutlinedButton.icon(
                         onPressed: _isGenerating ? null : _generateMealPlan,
                         icon: const Icon(Icons.refresh, size: 16),
-                        label: const Text('Regenerate plan'),
+                        label: const Text('Regenerate whole week'),
                       ),
                     ],
                   );
@@ -609,20 +784,12 @@ class _EmptyPlanCard extends StatelessWidget {
                 const SizedBox(height: 12),
                 const Text(
                   'No meal plan yet',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w700,
-                    color: Colors.white,
-                  ),
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: Colors.white),
                 ),
                 const SizedBox(height: 4),
                 Text(
                   'PERSONALIZED TO YOUR GOALS & CUISINE',
-                  style: AppFonts.mono(
-                    fontSize: 10,
-                    color: colors.accent,
-                    letterSpacing: 1,
-                  ),
+                  style: AppFonts.mono(fontSize: 10, color: colors.accent, letterSpacing: 1),
                   textAlign: TextAlign.center,
                 ),
               ],
@@ -647,19 +814,23 @@ class _EmptyPlanCard extends StatelessWidget {
   }
 }
 
-/// One meal card for the selected day: colored left border matching the
-/// meal type (same palette as Food Log), dish name + dotted-leader
-/// calorie total, macro chips, numbered prep steps if the AI returned
-/// any, and a "+ Log" action to push it straight into today's food log.
+/// One meal card for the selected day. Adds a swap (refresh) icon next
+/// to "+ Log" — tapping it regenerates just this meal via AI while
+/// keeping the rest of the day's plan untouched, and shows a small
+/// inline spinner on this card only while the swap is in flight.
 class _MealPlanCard extends StatelessWidget {
   final String mealType;
   final Map<String, dynamic> meal;
+  final bool isSwapping;
   final VoidCallback onLog;
+  final VoidCallback onSwap;
 
   const _MealPlanCard({
     required this.mealType,
     required this.meal,
+    required this.isSwapping,
     required this.onLog,
+    required this.onSwap,
   });
 
   @override
@@ -669,74 +840,92 @@ class _MealPlanCard extends StatelessWidget {
     final prep = meal['prep'];
     final prepSteps = prep is List ? prep.cast<String>() : const <String>[];
 
-    return Container(
-      decoration: BoxDecoration(
-        color: colors.surface,
-        borderRadius: BorderRadius.circular(14),
-        border: Border(left: BorderSide(color: color, width: 4)),
-        boxShadow: [
-          BoxShadow(color: colors.cardShadow, blurRadius: 8, offset: const Offset(0, 2)),
-        ],
-      ),
-      padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            mealType.toUpperCase(),
-            style: AppFonts.mono(
-              fontSize: 11,
-              fontWeight: FontWeight.w700,
-              color: color,
-              letterSpacing: 1,
-            ),
-          ),
-          const SizedBox(height: 8),
-          DottedLeaderRow(
-            label: meal['name']?.toString() ?? '',
-            value: '${meal['calories']}',
-            labelFontSize: 14,
-            labelFontWeight: FontWeight.w600,
-            valueFontSize: 14,
-          ),
-          const SizedBox(height: 10),
-          Row(
-            children: [
-              _MiniMacro(label: 'P', value: '${meal['protein']}g', color: colors.protein),
-              const SizedBox(width: 12),
-              _MiniMacro(label: 'C', value: '${meal['carbs']}g', color: colors.carbs),
-              const SizedBox(width: 12),
-              _MiniMacro(label: 'F', value: '${meal['fat']}g', color: colors.fat),
-              const Spacer(),
-              GestureDetector(
-                onTap: onLog,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                  decoration: BoxDecoration(
-                    color: color.withOpacity(0.12),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Text(
-                    '+ Log',
-                    style: TextStyle(color: color, fontWeight: FontWeight.w600, fontSize: 12),
+    return Opacity(
+      opacity: isSwapping ? 0.5 : 1,
+      child: Container(
+        decoration: BoxDecoration(
+          color: colors.surface,
+          borderRadius: BorderRadius.circular(14),
+          border: Border(left: BorderSide(color: color, width: 4)),
+          boxShadow: [
+            BoxShadow(color: colors.cardShadow, blurRadius: 8, offset: const Offset(0, 2)),
+          ],
+        ),
+        padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  mealType.toUpperCase(),
+                  style: AppFonts.mono(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                    color: color,
+                    letterSpacing: 1,
                   ),
                 ),
-              ),
-            ],
-          ),
-          if (prepSteps.isNotEmpty) ...[
-            const SizedBox(height: 10),
-            Divider(height: 1, color: colors.divider),
+                GestureDetector(
+                  onTap: isSwapping ? null : onSwap,
+                  child: isSwapping
+                      ? SizedBox(
+                    width: 14,
+                    height: 14,
+                    child: CircularProgressIndicator(strokeWidth: 2, color: color),
+                  )
+                      : Icon(Icons.swap_horiz, size: 16, color: colors.textMuted),
+                ),
+              ],
+            ),
             const SizedBox(height: 8),
-            ...prepSteps.asMap().entries.map((e) => Padding(
-              padding: const EdgeInsets.only(bottom: 3),
-              child: Text(
-                '${e.key + 1}. ${e.value}',
-                style: TextStyle(fontSize: 12, color: colors.textSecondary),
-              ),
-            )),
+            DottedLeaderRow(
+              label: meal['name']?.toString() ?? '',
+              value: '${meal['calories']}',
+              labelFontSize: 14,
+              labelFontWeight: FontWeight.w600,
+              valueFontSize: 14,
+            ),
+            const SizedBox(height: 10),
+            Row(
+              children: [
+                _MiniMacro(label: 'P', value: '${meal['protein']}g', color: colors.protein),
+                const SizedBox(width: 12),
+                _MiniMacro(label: 'C', value: '${meal['carbs']}g', color: colors.carbs),
+                const SizedBox(width: 12),
+                _MiniMacro(label: 'F', value: '${meal['fat']}g', color: colors.fat),
+                const Spacer(),
+                GestureDetector(
+                  onTap: isSwapping ? null : onLog,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: color.withOpacity(0.12),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Text(
+                      '+ Log',
+                      style: TextStyle(color: color, fontWeight: FontWeight.w600, fontSize: 12),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            if (prepSteps.isNotEmpty) ...[
+              const SizedBox(height: 10),
+              Divider(height: 1, color: colors.divider),
+              const SizedBox(height: 8),
+              ...prepSteps.asMap().entries.map((e) => Padding(
+                padding: const EdgeInsets.only(bottom: 3),
+                child: Text(
+                  '${e.key + 1}. ${e.value}',
+                  style: TextStyle(fontSize: 12, color: colors.textSecondary),
+                ),
+              )),
+            ],
           ],
-        ],
+        ),
       ),
     );
   }

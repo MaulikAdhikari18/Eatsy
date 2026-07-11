@@ -62,10 +62,12 @@ class _ScanScreenState extends State<ScanScreen> {
         setState(() => _scanResult = result);
       } else {
         if (mounted) {
+          final colors = context.appColors;
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Could not detect food. Try a clearer photo!'),
-              backgroundColor: Colors.orange,
+            SnackBar(
+              content: const Text('Could not detect food. Try a clearer photo!',
+                  style: TextStyle(color: Colors.white)),
+              backgroundColor: colors.carbs,
             ),
           );
         }

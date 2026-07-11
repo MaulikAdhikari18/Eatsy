@@ -8,6 +8,7 @@ import '../../features/auth/screens/signup_screen.dart';
 import '../../features/auth/screens/onboarding_screen.dart';
 import '../../features/dashboard/screens/dashboard_screen.dart';
 import '../../features/preferences/screens/diet_preferences_screen.dart';
+import '../theme/app_colors.dart';
 
 
 final appRouterProvider = Provider<GoRouter>((ref) {
@@ -88,9 +89,11 @@ class _StartupScreenState extends ConsumerState<_StartupScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return const Scaffold(
+    final colors = context.appColors;
+    return Scaffold(
+      backgroundColor: colors.background,
       body: Center(
-        child: CircularProgressIndicator(color: Color(0xFF4CAF50)),
+        child: CircularProgressIndicator(color: colors.accent),
       ),
     );
   }
