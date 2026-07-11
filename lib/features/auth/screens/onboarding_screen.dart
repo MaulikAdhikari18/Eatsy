@@ -377,7 +377,13 @@ class _FeatureRow extends StatelessWidget {
               color: colors.accent.withOpacity(0.15),
               borderRadius: BorderRadius.circular(12),
             ),
-            child: Icon(icon, color: colors.labelCard, size: 20),
+            // FIX: was `colors.labelCard` — a background color, not a
+            // foreground/icon color. In dark mode labelCard (#16332C)
+            // sits at nearly the same luminance as the tinted accent
+            // chip behind it, making the icon almost invisible.
+            // textPrimary is built to guarantee contrast on any surface
+            // in both themes, which is what this needs.
+            child: Icon(icon, color: colors.textPrimary, size: 20),
           ),
           const SizedBox(width: 14),
           Expanded(
@@ -537,9 +543,6 @@ class _WeightPage extends StatelessWidget {
           ),
           const SizedBox(height: 32),
 
-          // Current weight — uses the same "protein" green shown on
-          // Dashboard's macro cards, since this is a "where you are now"
-          // reading, same semantic role as a progress figure.
           _WeightCard(
             label: 'CURRENT WEIGHT',
             value: currentWeight,
@@ -551,8 +554,6 @@ class _WeightPage extends StatelessWidget {
           ),
           const SizedBox(height: 20),
 
-          // Target weight — "carbs" amber, reading as a target/goal figure
-          // rather than a live reading, matching that color's role elsewhere.
           _WeightCard(
             label: goalType == 'lose'
                 ? 'TARGET WEIGHT'

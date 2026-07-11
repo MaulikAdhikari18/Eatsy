@@ -5,6 +5,12 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../core/services/fatsecret_service.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../shared/widgets/dotted_leader_row.dart';
+import '../../../shared/widgets/receipt_decorations.dart';
+
+// Every color below comes from context.appColors (colors.*), same as
+// the Dashboard and Food Log. AppTheme is only imported for
+// AppFonts.mono — there is no AppTheme.primary anywhere in this file.
 
 class ScanScreen extends StatefulWidget {
   const ScanScreen({super.key});
@@ -58,8 +64,7 @@ class _ScanScreenState extends State<ScanScreen> {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
-              content: Text(
-                  'Could not detect food. Try a clearer photo!'),
+              content: Text('Could not detect food. Try a clearer photo!'),
               backgroundColor: Colors.orange,
             ),
           );
@@ -95,10 +100,11 @@ class _ScanScreenState extends State<ScanScreen> {
       });
 
       if (mounted) {
+        final colors = context.appColors;
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Meal logged successfully!'),
-            backgroundColor: AppTheme.primary,
+          SnackBar(
+            content: const Text('Meal logged successfully!'),
+            backgroundColor: colors.accent,
           ),
         );
         setState(() {
@@ -122,342 +128,200 @@ class _ScanScreenState extends State<ScanScreen> {
 
     return Scaffold(
       backgroundColor: colors.background,
-      appBar: AppBar(
-        title: Text('Scan Food',
-            style: TextStyle(color: colors.textPrimary, fontWeight: FontWeight.w600, fontSize: 18)),
-        backgroundColor: colors.surface,
-        elevation: 0,
-      ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Image preview or placeholder
-            GestureDetector(
-              onTap: () => _showImageSourceSheet(),
-              child: Container(
-                width: double.infinity,
-                height: 260,
-                decoration: BoxDecoration(
-                  color: colors.surface,
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(
-                    color: AppTheme.primary.withOpacity(0.3),
-                    width: 2,
-                  ),
-                ),
-                child: _selectedImage != null
-                    ? ClipRRect(
-                  borderRadius: BorderRadius.circular(18),
-                  child: Image.file(
-                    _selectedImage!,
-                    fit: BoxFit.cover,
-                  ),
-                )
-                    : Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(20),
-                      decoration: BoxDecoration(
-                        color: AppTheme.primary.withOpacity(0.1),
-                        shape: BoxShape.circle,
-                      ),
-                      child: const Icon(
-                        Icons.camera_alt,
-                        size: 48,
-                        color: AppTheme.primary,
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    const Text(
-                      'Tap to take a photo',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                        color: AppTheme.primary,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      'or upload from gallery',
-                      style: TextStyle(
-                        fontSize: 13,
-                        color: colors.textMuted,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-
-            const SizedBox(height: 16),
-
-            // Camera / Gallery buttons
-            Row(
-              children: [
-                Expanded(
-                  child: OutlinedButton.icon(
-                    onPressed: () => _pickImage(ImageSource.camera),
-                    style: OutlinedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 12),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                    ),
-                    icon: const Icon(Icons.camera_alt),
-                    label: const Text('Camera'),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: OutlinedButton.icon(
-                    onPressed: () => _pickImage(ImageSource.gallery),
-                    style: OutlinedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 12),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                    ),
-                    icon: const Icon(Icons.photo_library),
-                    label: const Text('Gallery'),
-                  ),
-                ),
-              ],
-            ),
-
-            const SizedBox(height: 20),
-
-            // Analyzing indicator
-            if (_isAnalyzing)
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(24),
-                decoration: BoxDecoration(
-                  color: colors.surface,
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                child: Column(
-                  children: [
-                    const CircularProgressIndicator(color: AppTheme.primary),
-                    const SizedBox(height: 16),
-                    Text(
-                      'Analyzing your meal...',
-                      style: TextStyle(
-                        fontWeight: FontWeight.w600,
-                        fontSize: 15,
-                        color: colors.textPrimary,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      'AI is detecting food items',
-                      style: TextStyle(color: colors.textMuted, fontSize: 13),
-                    ),
-                  ],
-                ),
-              ),
-
-            // Scan result
-            if (_scanResult != null) ...[
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(20),
-                decoration: BoxDecoration(
-                  color: colors.surface,
-                  borderRadius: BorderRadius.circular(16),
-                  boxShadow: [
-                    BoxShadow(
-                      color: colors.cardShadow,
-                      blurRadius: 10,
-                      offset: const Offset(0, 4),
-                    ),
-                  ],
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Header
-                    const Row(
-                      children: [
-                        Icon(Icons.check_circle,
-                            color: AppTheme.primary),
-                        SizedBox(width: 8),
-                        Text(
-                          'Food Detected!',
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 16,
-                            color: AppTheme.primary,
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 12),
-
-                    Text(
-                      _scanResult!['food_name'],
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        color: colors.textPrimary,
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-
-                    // Nutrition grid
-                    Row(
-                      children: [
-                        _NutritionTile(
-                          label: 'Calories',
-                          value:
-                          '${(_scanResult!['calories'] as double).toInt()}',
-                          unit: 'kcal',
-                          color: AppTheme.primary,
-                        ),
-                        _NutritionTile(
-                          label: 'Protein',
-                          value: '${_scanResult!['protein']}',
-                          unit: 'g',
-                          color: const Color(0xFFE53935),
-                        ),
-                        _NutritionTile(
-                          label: 'Carbs',
-                          value: '${_scanResult!['carbs']}',
-                          unit: 'g',
-                          color: const Color(0xFFFB8C00),
-                        ),
-                        _NutritionTile(
-                          label: 'Fat',
-                          value: '${_scanResult!['fat']}',
-                          unit: 'g',
-                          color: const Color(0xFF8E24AA),
-                        ),
-                      ],
-                    ),
-
-                    // Detected items
-                    if (_scanResult!['items'] != null) ...[
-                      const SizedBox(height: 16),
-                      Text(
-                        'Detected Items',
-                        style: TextStyle(
-                          fontWeight: FontWeight.w600,
-                          fontSize: 14,
-                          color: colors.textPrimary,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      ...(_scanResult!['items'] as List).map(
-                            (item) => Padding(
-                          padding: const EdgeInsets.only(bottom: 4),
-                          child: Row(
-                            mainAxisAlignment:
-                            MainAxisAlignment.spaceBetween,
-                            children: [
-                              Row(
-                                children: [
-                                  Icon(Icons.fiber_manual_record,
-                                      size: 8, color: colors.textMuted),
-                                  const SizedBox(width: 8),
-                                  Text(item['name'],
-                                      style: TextStyle(color: colors.textPrimary)),
-                                ],
-                              ),
-                              Text(
-                                '${item['calories']} kcal',
-                                style: TextStyle(
-                                  color: colors.textMuted,
-                                  fontSize: 13,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ],
-                  ],
-                ),
-              ),
-
-              const SizedBox(height: 20),
-
-              // Meal type selector
+      body: SafeArea(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
               Text(
-                'Add to meal',
+                'Scan Food',
                 style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
+                  fontSize: 24,
+                  fontWeight: FontWeight.w700,
                   color: colors.textPrimary,
                 ),
               ),
-              const SizedBox(height: 10),
-              SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                child: Row(
-                  children: _mealTypes.map((meal) {
-                    final isSelected = _selectedMealType == meal;
-                    return GestureDetector(
-                      onTap: () =>
-                          setState(() => _selectedMealType = meal),
-                      child: Container(
-                        margin: const EdgeInsets.only(right: 8),
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 20,
-                          vertical: 10,
-                        ),
+              const SizedBox(height: 16),
+
+              // Image preview or placeholder
+              GestureDetector(
+                onTap: () => _showImageSourceSheet(),
+                child: Container(
+                  width: double.infinity,
+                  height: 260,
+                  decoration: BoxDecoration(
+                    color: colors.surface,
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(
+                      color: colors.accent.withOpacity(0.35),
+                      width: 2,
+                    ),
+                  ),
+                  child: _selectedImage != null
+                      ? ClipRRect(
+                    borderRadius: BorderRadius.circular(18),
+                    child: Image.file(_selectedImage!, fit: BoxFit.cover),
+                  )
+                      : Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(20),
                         decoration: BoxDecoration(
-                          color: isSelected
-                              ? AppTheme.primary
-                              : colors.surface,
-                          borderRadius: BorderRadius.circular(20),
-                          border: Border.all(
-                            color: isSelected
-                                ? AppTheme.primary
-                                : colors.divider,
-                          ),
+                          color: colors.accent.withOpacity(0.12),
+                          shape: BoxShape.circle,
                         ),
-                        child: Text(
-                          meal[0].toUpperCase() + meal.substring(1),
-                          style: TextStyle(
-                            color: isSelected
-                                ? Colors.white
-                                : colors.textSecondary,
-                            fontWeight: FontWeight.w500,
-                          ),
+                        child: Icon(Icons.camera_alt,
+                            size: 48, color: colors.accent),
+                      ),
+                      const SizedBox(height: 16),
+                      Text(
+                        'Tap to take a photo',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                          color: colors.textPrimary,
                         ),
                       ),
-                    );
-                  }).toList(),
+                      const SizedBox(height: 4),
+                      Text(
+                        'or upload from gallery',
+                        style: TextStyle(fontSize: 13, color: colors.textMuted),
+                      ),
+                    ],
+                  ),
                 ),
+              ),
+
+              const SizedBox(height: 16),
+
+              // Camera / Gallery buttons — inherit border/text color
+              // from OutlinedButtonThemeData (already theme-aware).
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: () => _pickImage(ImageSource.camera),
+                      icon: const Icon(Icons.camera_alt),
+                      label: const Text('Camera'),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: () => _pickImage(ImageSource.gallery),
+                      icon: const Icon(Icons.photo_library),
+                      label: const Text('Gallery'),
+                    ),
+                  ),
+                ],
               ),
 
               const SizedBox(height: 20),
 
-              // Log button
-              ElevatedButton(
-                onPressed: _logFood,
-                child: const Text('Add to Food Log'),
-              ),
-
-              const SizedBox(height: 8),
-
-              OutlinedButton(
-                onPressed: () => setState(() {
-                  _selectedImage = null;
-                  _scanResult = null;
-                }),
-                style: OutlinedButton.styleFrom(
-                  minimumSize: const Size(double.infinity, 52),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
+              // Analyzing indicator
+              if (_isAnalyzing)
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(24),
+                  decoration: BoxDecoration(
+                    color: colors.surface,
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: Column(
+                    children: [
+                      CircularProgressIndicator(color: colors.accent),
+                      const SizedBox(height: 16),
+                      Text(
+                        'Analyzing your meal...',
+                        style: TextStyle(
+                          fontWeight: FontWeight.w600,
+                          fontSize: 15,
+                          color: colors.textPrimary,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'AI is detecting food items',
+                        style: TextStyle(color: colors.textMuted, fontSize: 13),
+                      ),
+                    ],
                   ),
                 ),
-                child: const Text('Scan Again'),
-              ),
+
+              // Scan result — same dark "nutrition facts" card treatment
+              // as the Dashboard's hero card: barcode strip, mono
+              // calorie total, zigzag tear, macro strip footer.
+              if (_scanResult != null) ...[
+                _ScanResultCard(result: _scanResult!),
+
+                const SizedBox(height: 20),
+
+                Text(
+                  'Add to meal',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: colors.textPrimary,
+                  ),
+                ),
+                const SizedBox(height: 10),
+                SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: Row(
+                    children: _mealTypes.map((meal) {
+                      final isSelected = _selectedMealType == meal;
+                      return GestureDetector(
+                        onTap: () => setState(() => _selectedMealType = meal),
+                        child: Container(
+                          margin: const EdgeInsets.only(right: 8),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 20,
+                            vertical: 10,
+                          ),
+                          decoration: BoxDecoration(
+                            color: isSelected
+                                ? colors.labelCard
+                                : colors.surfaceVariant,
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          child: Text(
+                            meal[0].toUpperCase() + meal.substring(1),
+                            style: TextStyle(
+                              color: isSelected
+                                  ? Colors.white
+                                  : colors.textSecondary,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ),
+                      );
+                    }).toList(),
+                  ),
+                ),
+
+                const SizedBox(height: 20),
+
+                // Log button — inherits accent fill from
+                // ElevatedButtonThemeData, same as every other screen.
+                ElevatedButton(
+                  onPressed: _logFood,
+                  child: const Text('Add to Food Log'),
+                ),
+
+                const SizedBox(height: 8),
+
+                OutlinedButton(
+                  onPressed: () => setState(() {
+                    _selectedImage = null;
+                    _scanResult = null;
+                  }),
+                  child: const Text('Scan Again'),
+                ),
+              ],
             ],
-          ],
+          ),
         ),
       ),
     );
@@ -478,8 +342,8 @@ class _ScanScreenState extends State<ScanScreen> {
           children: [
             ListTile(
               leading: CircleAvatar(
-                backgroundColor: AppTheme.primary.withOpacity(0.12),
-                child: const Icon(Icons.camera_alt, color: AppTheme.primary),
+                backgroundColor: colors.accent.withOpacity(0.15),
+                child: Icon(Icons.camera_alt, color: colors.accent),
               ),
               title: const Text('Take a Photo'),
               onTap: () {
@@ -488,10 +352,9 @@ class _ScanScreenState extends State<ScanScreen> {
               },
             ),
             ListTile(
-              leading: const CircleAvatar(
-                backgroundColor: Color(0xFFE3F2FD),
-                child:
-                Icon(Icons.photo_library, color: Color(0xFF2196F3)),
+              leading: CircleAvatar(
+                backgroundColor: colors.dinner.withOpacity(0.15),
+                child: Icon(Icons.photo_library, color: colors.dinner),
               ),
               title: const Text('Choose from Gallery'),
               onTap: () {
@@ -506,41 +369,133 @@ class _ScanScreenState extends State<ScanScreen> {
   }
 }
 
-class _NutritionTile extends StatelessWidget {
-  final String label;
-  final String value;
-  final String unit;
-  final Color color;
-
-  const _NutritionTile({
-    required this.label,
-    required this.value,
-    required this.unit,
-    required this.color,
-  });
+/// Mirrors the Dashboard's `_NutritionLabelCard`: dark label-card header
+/// with a decorative barcode strip and big mono calorie total, a
+/// zigzag torn edge, then a light footer with per-macro mono stats.
+/// Detected sub-items (if the model returns them) use the same
+/// `DottedLeaderRow` as the Food Log's meal-group cards.
+class _ScanResultCard extends StatelessWidget {
+  final Map<String, dynamic> result;
+  const _ScanResultCard({required this.result});
 
   @override
   Widget build(BuildContext context) {
     final colors = context.appColors;
-    return Expanded(
-      child: Column(
-        children: [
-          Text(
-            value,
-            style: TextStyle(
-              color: color,
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
+    final calories = ((result['calories'] ?? 0) as num).toDouble();
+    final items = result['items'] as List?;
+
+    return Column(
+      children: [
+        ClipRRect(
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(18)),
+          child: Container(
+            color: colors.labelCard,
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                BarcodeStrip(color: colors.accent),
+                const SizedBox(height: 12),
+                Text(
+                  'FOOD DETECTED',
+                  style: AppFonts.mono(
+                    fontSize: 10,
+                    color: colors.accent,
+                    letterSpacing: 1,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  result['food_name']?.toString() ?? '',
+                  style: const TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  '${calories.toInt()} kcal',
+                  style: AppFonts.mono(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.white70,
+                  ),
+                ),
+                const SizedBox(height: 10),
+              ],
             ),
           ),
-          Text(
-            unit,
-            style: TextStyle(color: colors.textMuted, fontSize: 11),
+        ),
+        ZigzagEdge(color: colors.labelCard),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          decoration: BoxDecoration(
+            color: colors.surface,
+            border: Border.all(color: colors.divider),
+            borderRadius: const BorderRadius.vertical(bottom: Radius.circular(18)),
           ),
-          Text(
-            label,
-            style: TextStyle(fontSize: 12, color: colors.textSecondary),
+          child: Column(
+            children: [
+              Row(
+                children: [
+                  // FIX: was `'${result['protein']}g'` etc — if this value
+                  // ever comes back as a double (e.g. 15.0 from a real
+                  // vision API instead of the current stub), it would
+                  // render as "15.0g" instead of "15g". Casting through
+                  // num.toInt() first guarantees a clean integer string
+                  // regardless of whether the source value is an int or
+                  // a double.
+                  _MacroChip(
+                    label: 'PROTEIN',
+                    value: '${((result['protein'] ?? 0) as num).toInt()}g',
+                    color: colors.protein,
+                  ),
+                  _MacroChip(
+                    label: 'CARBS',
+                    value: '${((result['carbs'] ?? 0) as num).toInt()}g',
+                    color: colors.carbs,
+                  ),
+                  _MacroChip(
+                    label: 'FAT',
+                    value: '${((result['fat'] ?? 0) as num).toInt()}g',
+                    color: colors.fat,
+                  ),
+                ],
+              ),
+              if (items != null && items.isNotEmpty) ...[
+                Divider(height: 24, color: colors.divider),
+                ...items.map((item) => Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 5),
+                  child: DottedLeaderRow(
+                    label: item['name']?.toString() ?? '',
+                    value: '${item['calories']}',
+                  ),
+                )),
+              ],
+            ],
           ),
+        ),
+      ],
+    );
+  }
+}
+
+class _MacroChip extends StatelessWidget {
+  final String label;
+  final String value;
+  final Color color;
+  const _MacroChip({required this.label, required this.value, required this.color});
+
+  @override
+  Widget build(BuildContext context) {
+    return Expanded(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(label, style: AppFonts.mono(fontSize: 9, color: color, letterSpacing: 0.5)),
+          const SizedBox(height: 3),
+          Text(value, style: AppFonts.mono(fontSize: 15, fontWeight: FontWeight.w600, color: color)),
         ],
       ),
     );
