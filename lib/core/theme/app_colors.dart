@@ -37,6 +37,10 @@ class AppColors extends ThemeExtension<AppColors> {
   final Color dinner;
   final Color snack;
 
+  // Water tracking — distinct cyan-blue, separate from "dinner"'s
+  // indigo-purple so the two don't get confused at a glance.
+  final Color water;
+
   const AppColors({
     required this.background,
     required this.surface,
@@ -56,6 +60,7 @@ class AppColors extends ThemeExtension<AppColors> {
     required this.lunch,
     required this.dinner,
     required this.snack,
+    required this.water,
   });
 
   /// Returns the color for a given meal_type string ('breakfast', 'lunch',
@@ -94,6 +99,7 @@ class AppColors extends ThemeExtension<AppColors> {
     lunch: Color(0xFF8FB93A),
     dinner: Color(0xFF7C8FCA),
     snack: Color(0xFFC97CA0),
+    water: Color(0xFF4A90C4),
   );
 
   static const dark = AppColors(
@@ -115,6 +121,7 @@ class AppColors extends ThemeExtension<AppColors> {
     lunch: Color(0xFFA8D95A),
     dinner: Color(0xFF9AA8E0),
     snack: Color(0xFFE0A0BE),
+    water: Color(0xFF7EC2E8),
   );
 
   @override
@@ -137,6 +144,7 @@ class AppColors extends ThemeExtension<AppColors> {
     Color? lunch,
     Color? dinner,
     Color? snack,
+    Color? water,
   }) {
     return AppColors(
       background: background ?? this.background,
@@ -157,6 +165,7 @@ class AppColors extends ThemeExtension<AppColors> {
       lunch: lunch ?? this.lunch,
       dinner: dinner ?? this.dinner,
       snack: snack ?? this.snack,
+      water: water ?? this.water,
     );
   }
 
@@ -182,6 +191,7 @@ class AppColors extends ThemeExtension<AppColors> {
       lunch: Color.lerp(lunch, other.lunch, t)!,
       dinner: Color.lerp(dinner, other.dinner, t)!,
       snack: Color.lerp(snack, other.snack, t)!,
+      water: Color.lerp(water, other.water, t)!,
     );
   }
 }

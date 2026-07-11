@@ -6,6 +6,7 @@ import '../../scan/screens/scan_screen.dart';
 import '../../barcode/screens/barcode_screen.dart';
 import '../../goals/screens/goals_screen.dart';
 import '../controllers/dashboard_controller.dart';
+import '../controllers/water_controller.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:go_router/go_router.dart';
 import '../../mealplan/screens/meal_plan_screen.dart';
@@ -210,6 +211,7 @@ class _HomeTab extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final today = DateFormat('EEE MMM d').format(DateTime.now()).toUpperCase();
     final summaryAsync = ref.watch(dashboardSummaryProvider);
+    final waterAsync = ref.watch(waterSummaryProvider);
     final colors = context.appColors;
 
     return Scaffold(
@@ -217,7 +219,10 @@ class _HomeTab extends ConsumerWidget {
       body: SafeArea(
         child: RefreshIndicator(
           color: colors.accent,
-          onRefresh: () async => ref.invalidate(dashboardSummaryProvider),
+          onRefresh: () async {
+            ref.invalidate(dashboardSummaryProvider);
+            ref.invalidate(waterSummaryProvider);
+          },
           child: SingleChildScrollView(
             physics: const AlwaysScrollableScrollPhysics(),
             padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
@@ -313,6 +318,20 @@ class _HomeTab extends ConsumerWidget {
                       ),
                     ),
                   ],
+                ),
+
+                const SizedBox(height: 24),
+
+                waterAsync.when(
+                  data: (summary) => _WaterCard(
+                    summary: summary,
+                    onAdd: (ml) async {
+                      await logWaterMl(ml);
+                      ref.read(waterRefreshProvider.notifier).state++;
+                    },
+                  ),
+                  loading: () => _WaterCardSkeleton(colors: colors),
+                  error: (_, __) => _WaterCardSkeleton(colors: colors),
                 ),
 
                 const SizedBox(height: 24),
@@ -509,6 +528,131 @@ class _MacroStat extends StatelessWidget {
           const SizedBox(height: 3),
           Text(value, style: AppFonts.mono(fontSize: 15, fontWeight: FontWeight.w600, color: color)),
         ],
+      ),
+    );
+  }
+}
+
+/// Water tracking card: today's total against a daily goal, a thin
+/// progress bar, and three quick-add pills — same visual weight as the
+/// macro strip on the nutrition label card above it, just its own
+/// dedicated "water" blue instead of a macro color.
+class _WaterCard extends StatelessWidget {
+  final WaterSummary summary;
+  final void Function(int ml) onAdd;
+  const _WaterCard({required this.summary, required this.onAdd});
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.appColors;
+    final progress = summary.goalMl > 0
+        ? (summary.consumedMl / summary.goalMl).clamp(0.0, 1.0)
+        : 0.0;
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: colors.surface,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: colors.divider),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
+                children: [
+                  Icon(Icons.water_drop, size: 15, color: colors.water),
+                  const SizedBox(width: 6),
+                  Text(
+                    'WATER',
+                    style: AppFonts.mono(
+                      fontSize: 11,
+                      color: colors.water,
+                      letterSpacing: 1,
+                    ),
+                  ),
+                ],
+              ),
+              Text(
+                '${summary.consumedMl} / ${summary.goalMl} ml',
+                style: AppFonts.mono(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: colors.textPrimary,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(3),
+            child: LinearProgressIndicator(
+              value: progress,
+              minHeight: 6,
+              backgroundColor: colors.surfaceVariant,
+              valueColor: AlwaysStoppedAnimation<Color>(colors.water),
+            ),
+          ),
+          const SizedBox(height: 14),
+          Row(
+            children: [
+              _WaterAddButton(label: '+250ml', color: colors.water, onTap: () => onAdd(250)),
+              const SizedBox(width: 8),
+              _WaterAddButton(label: '+500ml', color: colors.water, onTap: () => onAdd(500)),
+              const SizedBox(width: 8),
+              _WaterAddButton(label: '+1L', color: colors.water, onTap: () => onAdd(1000)),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _WaterAddButton extends StatelessWidget {
+  final String label;
+  final Color color;
+  final VoidCallback onTap;
+  const _WaterAddButton({required this.label, required this.color, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return Expanded(
+      child: GestureDetector(
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 10),
+          decoration: BoxDecoration(
+            color: color.withOpacity(0.12),
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(color: color.withOpacity(0.35)),
+          ),
+          child: Text(
+            label,
+            textAlign: TextAlign.center,
+            style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: color),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _WaterCardSkeleton extends StatelessWidget {
+  final AppColors colors;
+  const _WaterCardSkeleton({required this.colors});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: 118,
+      decoration: BoxDecoration(
+        color: colors.surface,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: colors.divider),
       ),
     );
   }
