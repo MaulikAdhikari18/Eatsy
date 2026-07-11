@@ -31,12 +31,24 @@ class DottedLeaderRow extends StatelessWidget {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.end,
       children: [
-        Text(
-          label,
-          style: TextStyle(
-            fontSize: labelFontSize,
-            fontWeight: labelFontWeight,
-            color: labelColor ?? colors.textPrimary,
+        // FIX: was a bare `Text(label, ...)` with no width constraint —
+        // Row gives non-flex children unbounded space along the main
+        // axis, so a long AI-generated dish name (e.g. "Scrambled Eggs
+        // with Whole Wheat Toast and Mixed Berries") would try to render
+        // at its full natural width and overflow past the card edge
+        // ("RIGHT OVERFLOWED BY n PIXELS"). Wrapping in Flexible bounds
+        // it to whatever space is actually available and truncates with
+        // an ellipsis instead of overflowing.
+        Flexible(
+          child: Text(
+            label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              fontSize: labelFontSize,
+              fontWeight: labelFontWeight,
+              color: labelColor ?? colors.textPrimary,
+            ),
           ),
         ),
         const SizedBox(width: 6),

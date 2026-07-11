@@ -74,9 +74,11 @@ class _MealPlanScreenState extends ConsumerState<MealPlanScreen> {
     }
   }
 
-  /// Saves (or updates) the current plan to Supabase so it survives
-  /// closing the app. Called after a full generation and after every
-  /// single-meal swap so the persisted copy never goes stale.
+  /// Upserts the current plan into `diet_plans` — one row per user
+  /// (see the SQL migration's unique constraint on user_id). Every full
+  /// regeneration AND every single-meal swap call this, so switching
+  /// from insert to upsert here is what stops a swap from writing a
+  /// brand new 7-day-plan row on top of the existing one.
   Future<void> _persistPlan(Map<String, dynamic> plan, DietPreferences prefs) async {
     try {
       final supabase = Supabase.instance.client;
@@ -87,14 +89,15 @@ class _MealPlanScreenState extends ConsumerState<MealPlanScreen> {
       final weekStart = now.subtract(Duration(days: now.weekday - 1));
       final firstDay = (plan['days'] as List).first as Map<String, dynamic>;
 
-      await supabase.from('diet_plans').insert({
+      await supabase.from('diet_plans').upsert({
         'user_id': userId,
+        'generated_at': now.toIso8601String(),
         'week_start_date':
         '${weekStart.year}-${weekStart.month.toString().padLeft(2, '0')}-${weekStart.day.toString().padLeft(2, '0')}',
         'cuisine': prefs.cuisines.isEmpty ? 'Mixed' : prefs.cuisines.join(', '),
         'calorie_target': firstDay['total_calories'],
         'plan_json': plan,
-      });
+      }, onConflict: 'user_id');
     } catch (e) {
       debugPrint('❌ Error persisting plan: $e');
       // Non-fatal — the plan still works locally for this session even
@@ -372,10 +375,9 @@ Rules:
       _mealPlan = null;
     });
 
-    final prefs =
-        await ref.read(dietPreferencesProvider.future) ?? const DietPreferences();
-
     try {
+      final prefs =
+          await ref.read(dietPreferencesProvider.future) ?? const DietPreferences();
       final userData = await _getUserData();
       final prompt = _buildPrompt(userData, prefs);
 
@@ -422,6 +424,8 @@ Rules:
       await _persistPlan(plan, prefs);
     } catch (e) {
       debugPrint('❌ Error: $e');
+      final prefs =
+          await ref.read(dietPreferencesProvider.future) ?? const DietPreferences();
       final userData = await _getUserData();
       final fallback = _getFallbackPlan(userData);
       setState(() {
