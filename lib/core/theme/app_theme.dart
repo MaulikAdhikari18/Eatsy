@@ -1,12 +1,27 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'app_colors.dart';
 
-class AppTheme {
-  // Brand colors — stay the same in both light and dark mode.
-  static const Color primary = Color(0xFF4CAF50);
-  static const Color secondary = Color(0xFF81C784);
-  static const Color accent = Color(0xFFFF7043);
+/// Text style helpers for the mono numeral treatment used on every
+/// number in the app (calories, macros, receipt totals) — this is the
+/// signature typographic detail of the "Petrol & Citrus" design system.
+class AppFonts {
+  static TextStyle mono({
+    required double fontSize,
+    FontWeight fontWeight = FontWeight.w500,
+    Color? color,
+    double? letterSpacing,
+  }) {
+    return GoogleFonts.ibmPlexMono(
+      fontSize: fontSize,
+      fontWeight: fontWeight,
+      color: color,
+      letterSpacing: letterSpacing,
+    );
+  }
+}
 
+class AppTheme {
   static ThemeData lightTheme = _buildTheme(
     brightness: Brightness.light,
     colors: AppColors.light,
@@ -21,13 +36,13 @@ class AppTheme {
     required Brightness brightness,
     required AppColors colors,
   }) {
-    final isDark = brightness == Brightness.dark;
+    final baseTextTheme = GoogleFonts.spaceGroteskTextTheme();
 
     return ThemeData(
       useMaterial3: true,
       brightness: brightness,
       colorScheme: ColorScheme.fromSeed(
-        seedColor: primary,
+        seedColor: colors.accent,
         brightness: brightness,
         onSurface: colors.textPrimary,
         surface: colors.surface,
@@ -35,22 +50,32 @@ class AppTheme {
       scaffoldBackgroundColor: colors.background,
       extensions: [colors],
 
-      textTheme: TextTheme(
-        displayLarge: TextStyle(color: colors.textPrimary, fontWeight: FontWeight.bold),
-        displayMedium: TextStyle(color: colors.textPrimary, fontWeight: FontWeight.bold),
-        displaySmall: TextStyle(color: colors.textPrimary, fontWeight: FontWeight.bold),
-        headlineLarge: TextStyle(color: colors.textPrimary, fontWeight: FontWeight.bold),
-        headlineMedium: TextStyle(color: colors.textPrimary, fontWeight: FontWeight.bold),
-        headlineSmall: TextStyle(color: colors.textPrimary, fontWeight: FontWeight.bold),
-        titleLarge: TextStyle(color: colors.textPrimary, fontWeight: FontWeight.bold),
-        titleMedium: TextStyle(color: colors.textPrimary, fontWeight: FontWeight.w600),
-        titleSmall: TextStyle(color: colors.textPrimary, fontWeight: FontWeight.w500),
-        bodyLarge: TextStyle(color: colors.textPrimary),
-        bodyMedium: TextStyle(color: colors.textPrimary),
-        bodySmall: TextStyle(color: colors.textSecondary),
-        labelLarge: TextStyle(color: colors.textPrimary, fontWeight: FontWeight.w600),
-        labelMedium: TextStyle(color: colors.textPrimary),
-        labelSmall: TextStyle(color: colors.textSecondary),
+      textTheme: baseTextTheme.copyWith(
+        displayLarge: baseTextTheme.displayLarge
+            ?.copyWith(color: colors.textPrimary, fontWeight: FontWeight.bold),
+        displayMedium: baseTextTheme.displayMedium
+            ?.copyWith(color: colors.textPrimary, fontWeight: FontWeight.bold),
+        displaySmall: baseTextTheme.displaySmall
+            ?.copyWith(color: colors.textPrimary, fontWeight: FontWeight.bold),
+        headlineLarge: baseTextTheme.headlineLarge
+            ?.copyWith(color: colors.textPrimary, fontWeight: FontWeight.bold),
+        headlineMedium: baseTextTheme.headlineMedium
+            ?.copyWith(color: colors.textPrimary, fontWeight: FontWeight.bold),
+        headlineSmall: baseTextTheme.headlineSmall
+            ?.copyWith(color: colors.textPrimary, fontWeight: FontWeight.bold),
+        titleLarge: baseTextTheme.titleLarge
+            ?.copyWith(color: colors.textPrimary, fontWeight: FontWeight.bold),
+        titleMedium: baseTextTheme.titleMedium
+            ?.copyWith(color: colors.textPrimary, fontWeight: FontWeight.w600),
+        titleSmall: baseTextTheme.titleSmall
+            ?.copyWith(color: colors.textPrimary, fontWeight: FontWeight.w500),
+        bodyLarge: baseTextTheme.bodyLarge?.copyWith(color: colors.textPrimary),
+        bodyMedium: baseTextTheme.bodyMedium?.copyWith(color: colors.textPrimary),
+        bodySmall: baseTextTheme.bodySmall?.copyWith(color: colors.textSecondary),
+        labelLarge: baseTextTheme.labelLarge
+            ?.copyWith(color: colors.textPrimary, fontWeight: FontWeight.w600),
+        labelMedium: baseTextTheme.labelMedium?.copyWith(color: colors.textPrimary),
+        labelSmall: baseTextTheme.labelSmall?.copyWith(color: colors.textSecondary),
       ),
 
       appBarTheme: AppBarTheme(
@@ -58,23 +83,25 @@ class AppTheme {
         elevation: 0,
         centerTitle: true,
         foregroundColor: colors.textPrimary,
-        titleTextStyle: TextStyle(
+        titleTextStyle: GoogleFonts.spaceGrotesk(
           color: colors.textPrimary,
           fontSize: 18,
-          fontWeight: FontWeight.w600,
+          fontWeight: FontWeight.w700,
         ),
         iconTheme: IconThemeData(color: colors.textPrimary),
       ),
 
+      // Primary CTAs use the citrus accent with dark ink text — lime is
+      // too light for white text to sit on comfortably.
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
-          backgroundColor: primary,
-          foregroundColor: Colors.white,
+          backgroundColor: colors.accent,
+          foregroundColor: colors.accentOnColor,
           minimumSize: const Size(double.infinity, 52),
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(14),
           ),
-          textStyle: const TextStyle(
+          textStyle: GoogleFonts.spaceGrotesk(
             fontSize: 16,
             fontWeight: FontWeight.w600,
           ),
@@ -83,25 +110,25 @@ class AppTheme {
 
       outlinedButtonTheme: OutlinedButtonThemeData(
         style: OutlinedButton.styleFrom(
-          foregroundColor: primary,
-          side: const BorderSide(color: primary),
+          foregroundColor: colors.textPrimary,
+          side: BorderSide(color: colors.divider, width: 1.5),
           minimumSize: const Size(double.infinity, 52),
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(14),
           ),
         ),
       ),
 
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
-        fillColor: isDark ? colors.surfaceVariant : Colors.grey[100],
+        fillColor: colors.surfaceVariant,
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
           borderSide: BorderSide.none,
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: primary, width: 2),
+          borderSide: BorderSide(color: colors.accent, width: 2),
         ),
         hintStyle: TextStyle(color: colors.textMuted),
         labelStyle: TextStyle(color: colors.textPrimary),
@@ -115,25 +142,25 @@ class AppTheme {
 
       navigationBarTheme: NavigationBarThemeData(
         backgroundColor: colors.surface,
-        indicatorColor: primary.withOpacity(0.15),
+        indicatorColor: colors.accent.withOpacity(0.25),
         labelTextStyle: WidgetStateProperty.resolveWith((states) {
           if (states.contains(WidgetState.selected)) {
-            return const TextStyle(
-              color: primary,
+            return TextStyle(
+              color: colors.textPrimary,
               fontSize: 12,
               fontWeight: FontWeight.w600,
             );
           }
           return TextStyle(
-            color: colors.textSecondary,
+            color: colors.textMuted,
             fontSize: 12,
           );
         }),
         iconTheme: WidgetStateProperty.resolveWith((states) {
           if (states.contains(WidgetState.selected)) {
-            return const IconThemeData(color: primary);
+            return IconThemeData(color: colors.textPrimary);
           }
-          return IconThemeData(color: colors.textSecondary);
+          return IconThemeData(color: colors.textMuted);
         }),
       ),
 
@@ -155,9 +182,9 @@ class AppTheme {
         thickness: 1,
       ),
 
-      sliderTheme: const SliderThemeData(
-        activeTrackColor: primary,
-        thumbColor: primary,
+      sliderTheme: SliderThemeData(
+        activeTrackColor: colors.accent,
+        thumbColor: colors.accent,
       ),
     );
   }
