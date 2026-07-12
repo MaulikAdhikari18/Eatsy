@@ -17,6 +17,7 @@ import '../../../core/settings/unit_preferences_provider.dart';
 import '../../../core/utils/unit_converter.dart';
 import '../../../shared/widgets/dotted_leader_row.dart';
 import '../../../shared/widgets/receipt_decorations.dart';
+import '../../../shared/widgets/unit_dropdown.dart';
 
 class DashboardScreen extends ConsumerStatefulWidget {
   const DashboardScreen({super.key});
@@ -180,69 +181,19 @@ class _HomeTab extends ConsumerWidget {
                 );
               },
             ),
-            const SizedBox(height: 24),
-            Text(
-              'Units',
-              style: TextStyle(
-                fontWeight: FontWeight.w600,
-                fontSize: 13,
-                color: colors.textSecondary,
-              ),
-            ),
-            const SizedBox(height: 10),
-            Consumer(
-              builder: (context, ref, _) {
-                final weightUnit = ref.watch(weightUnitProvider);
-                return Row(
-                  children: [
-                    _ThemeOption(
-                      icon: Icons.monitor_weight_outlined,
-                      label: 'Weight: kg',
-                      selected: weightUnit == WeightUnit.kg,
-                      onTap: () => ref
-                          .read(weightUnitProvider.notifier)
-                          .setUnit(WeightUnit.kg),
-                    ),
-                    const SizedBox(width: 10),
-                    _ThemeOption(
-                      icon: Icons.monitor_weight_outlined,
-                      label: 'Weight: lb',
-                      selected: weightUnit == WeightUnit.lb,
-                      onTap: () => ref
-                          .read(weightUnitProvider.notifier)
-                          .setUnit(WeightUnit.lb),
-                    ),
-                  ],
-                );
-              },
-            ),
-            const SizedBox(height: 10),
-            Consumer(
-              builder: (context, ref, _) {
-                final waterUnit = ref.watch(waterUnitProvider);
-                return Row(
-                  children: [
-                    _ThemeOption(
-                      icon: Icons.water_drop_outlined,
-                      label: 'Water: ml',
-                      selected: waterUnit == WaterUnit.ml,
-                      onTap: () => ref
-                          .read(waterUnitProvider.notifier)
-                          .setUnit(WaterUnit.ml),
-                    ),
-                    const SizedBox(width: 10),
-                    _ThemeOption(
-                      icon: Icons.water_drop_outlined,
-                      label: 'Water: L',
-                      selected: waterUnit == WaterUnit.liter,
-                      onTap: () => ref
-                          .read(waterUnitProvider.notifier)
-                          .setUnit(WaterUnit.liter),
-                    ),
-                  ],
-                );
-              },
-            ),
+            // NOTE: the old "Units" section (Weight kg/lb pills, Water
+            // ml/L pills) that used to live here has been removed on
+            // purpose. Units are now controlled inline, right next to
+            // the fields they affect — Target Weight, Log Today's
+            // Weight, and Weight History all get a dropdown next to
+            // them on the Goals screen; the water card below gets one
+            // next to its total. Every one of those dropdowns reads and
+            // writes the exact same weightUnitProvider / waterUnitProvider
+            // as before, so there's still a single source of truth for
+            // "what unit is this app in right now" — it's just exposed
+            // where it's actually used instead of buried in a separate
+            // settings sheet, and a per-field toggle here would have
+            // been a second, redundant control for the same state.
             const SizedBox(height: 24),
             ListTile(
               leading: Icon(Icons.flag_outlined, color: colors.textSecondary),
@@ -406,8 +357,7 @@ class _HomeTab extends ConsumerWidget {
                       // Clamp so a removal can never push today's total
                       // below zero — e.g. tapping "-1L" after only
                       // logging 250ml just zeroes it out instead of
-                      // going negative. Synchronous math on `summary`,
-                      // so it stays outside the try — can't throw.
+                      // going negative.
                       final amount =
                       ml > summary.consumedMl ? summary.consumedMl : ml;
                       if (amount <= 0) return;
@@ -417,7 +367,7 @@ class _HomeTab extends ConsumerWidget {
                       } catch (e) {
                         if (context.mounted) {
                           ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(content: Text('Error removing water: $e')),
+                            SnackBar(content: Text('Error updating water: $e')),
                           );
                         }
                       }
@@ -628,10 +578,9 @@ class _MacroStat extends StatelessWidget {
 
 /// Water tracking card: today's total against a daily goal, a thin
 /// progress bar, quick-add pills, and a mirrored quick-remove row for
-/// correcting an accidental tap — same visual weight as the macro strip
-/// on the nutrition label card above it, just its own dedicated "water"
-/// blue instead of a macro color. A ConsumerWidget (not Stateless) so
-/// it can watch `waterUnitProvider` and format ml vs. L on its own.
+/// correcting an accidental tap. Now supports all four WaterUnit values
+/// (ml / L / fl oz / glasses) via an inline dropdown next to the total,
+/// instead of relying on the old Settings-only ml/L toggle.
 class _WaterCard extends ConsumerWidget {
   final WaterSummary summary;
   final void Function(int ml) onAdd;
@@ -642,23 +591,38 @@ class _WaterCard extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final colors = context.appColors;
     final unit = ref.watch(waterUnitProvider);
-    final isLiter = unit == WaterUnit.liter;
     final progress = summary.goalMl > 0
         ? (summary.consumedMl / summary.goalMl).clamp(0.0, 1.0)
         : 0.0;
 
-    String totalLabel(int ml) => isLiter
-        ? UnitConverter.mlToL(ml).toStringAsFixed(2)
-        : ml.toString();
-    // "+1L" reads better than "+1000ml" even in ml mode, so only the
-    // 250/500 pills change wording between units — 1000 stays "1L"
-    // either way.
+    String totalLabel(int ml) => switch (unit) {
+      WaterUnit.liter => UnitConverter.mlToL(ml).toStringAsFixed(2),
+      WaterUnit.flOz => UnitConverter.mlToFlOz(ml).toStringAsFixed(0),
+      WaterUnit.glasses => UnitConverter.mlToGlasses(ml).round().toString(),
+      WaterUnit.ml => ml.toString(),
+    };
+
+    String unitSuffix() => switch (unit) {
+      WaterUnit.liter => 'L',
+      WaterUnit.flOz => 'fl oz',
+      WaterUnit.glasses => 'glasses',
+      WaterUnit.ml => 'ml',
+    };
+
     String pillLabel(int ml, {required bool isAdd}) {
       final sign = isAdd ? '+' : '-';
-      if (ml == 1000) return '$sign${'1L'}';
-      final text = isLiter ? UnitConverter.mlToL(ml).toStringAsFixed(2) : '$ml';
-      final suffix = isLiter ? 'L' : 'ml';
-      return '$sign$text$suffix';
+      switch (unit) {
+        case WaterUnit.glasses:
+          final g = (ml / UnitConverter.mlPerGlass).round();
+          return '$sign$g glass${g == 1 ? '' : 'es'}';
+        case WaterUnit.liter:
+          if (ml == 1000) return '${sign}1L';
+          return '$sign${UnitConverter.mlToL(ml).toStringAsFixed(2)}L';
+        case WaterUnit.flOz:
+          return '$sign${UnitConverter.mlToFlOz(ml).toStringAsFixed(0)}fl oz';
+        case WaterUnit.ml:
+          return '$sign${ml}ml';
+      }
     }
 
     return Container(
@@ -688,13 +652,25 @@ class _WaterCard extends ConsumerWidget {
                   ),
                 ],
               ),
-              Text(
-                '${totalLabel(summary.consumedMl)} / ${totalLabel(summary.goalMl)} ${isLiter ? 'L' : 'ml'}',
-                style: AppFonts.mono(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
-                  color: colors.textPrimary,
-                ),
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    '${totalLabel(summary.consumedMl)} / ${totalLabel(summary.goalMl)} ${unitSuffix()}',
+                    style: AppFonts.mono(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: colors.textPrimary,
+                    ),
+                  ),
+                  const SizedBox(width: 6),
+                  UnitDropdown<WaterUnit>(
+                    value: unit,
+                    options: waterUnitOptions,
+                    color: colors.water,
+                    onChanged: (u) => ref.read(waterUnitProvider.notifier).setUnit(u),
+                  ),
+                ],
               ),
             ],
           ),
@@ -730,10 +706,6 @@ class _WaterCard extends ConsumerWidget {
               ),
             ],
           ),
-          // Only show a remove row once there's actually something
-          // logged today — nothing to correct otherwise, and it keeps
-          // the card compact for the common "haven't drunk anything
-          // yet" state.
           if (summary.consumedMl > 0) ...[
             const SizedBox(height: 8),
             Row(
