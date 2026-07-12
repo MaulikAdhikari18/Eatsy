@@ -391,19 +391,36 @@ class _HomeTab extends ConsumerWidget {
                   data: (summary) => _WaterCard(
                     summary: summary,
                     onAdd: (ml) async {
-                      await logWaterMl(ml);
-                      ref.read(waterRefreshProvider.notifier).state++;
+                      try {
+                        await logWaterMl(ml);
+                        ref.read(waterRefreshProvider.notifier).state++;
+                      } catch (e) {
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(content: Text('Error logging water: $e')),
+                          );
+                        }
+                      }
                     },
                     onRemove: (ml) async {
                       // Clamp so a removal can never push today's total
                       // below zero — e.g. tapping "-1L" after only
                       // logging 250ml just zeroes it out instead of
-                      // going negative.
+                      // going negative. Synchronous math on `summary`,
+                      // so it stays outside the try — can't throw.
                       final amount =
                       ml > summary.consumedMl ? summary.consumedMl : ml;
                       if (amount <= 0) return;
-                      await removeWaterMl(amount);
-                      ref.read(waterRefreshProvider.notifier).state++;
+                      try {
+                        await removeWaterMl(amount);
+                        ref.read(waterRefreshProvider.notifier).state++;
+                      } catch (e) {
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(content: Text('Error removing water: $e')),
+                          );
+                        }
+                      }
                     },
                   ),
                   loading: () => _WaterCardSkeleton(colors: colors),
