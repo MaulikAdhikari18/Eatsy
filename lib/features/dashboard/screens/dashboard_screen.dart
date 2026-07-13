@@ -7,6 +7,7 @@ import '../../barcode/screens/barcode_screen.dart';
 import '../../goals/screens/goals_screen.dart';
 import '../controllers/dashboard_controller.dart';
 import '../controllers/water_controller.dart';
+import '../controllers/tip_controller.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:go_router/go_router.dart';
 import '../../mealplan/screens/meal_plan_screen.dart';
@@ -376,6 +377,10 @@ class _HomeTab extends ConsumerWidget {
                   loading: () => _WaterCardSkeleton(colors: colors),
                   error: (_, __) => _WaterCardSkeleton(colors: colors),
                 ),
+
+                const SizedBox(height: 24),
+
+                const _TipCard(),
 
                 const SizedBox(height: 24),
 
@@ -778,6 +783,117 @@ class _WaterCardSkeleton extends StatelessWidget {
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: colors.divider),
       ),
+    );
+  }
+}
+
+/// "AI Tip of the Day" — see tip_controller.dart for the rule
+/// evaluation. Category drives both the icon and the accent color,
+/// reusing existing semantic colors (protein/carbs/water/accent)
+/// rather than introducing new ones just for this card.
+class _TipCard extends ConsumerWidget {
+  const _TipCard();
+
+  Color _colorFor(TipCategory category, AppColors colors) {
+    switch (category) {
+      case TipCategory.engagement:
+        return colors.accent;
+      case TipCategory.nutrition:
+        return colors.carbs;
+      case TipCategory.hydration:
+        return colors.water;
+      case TipCategory.general:
+        return colors.textSecondary;
+    }
+  }
+
+  IconData _iconFor(TipCategory category) {
+    switch (category) {
+      case TipCategory.engagement:
+        return Icons.notifications_active_outlined;
+      case TipCategory.nutrition:
+        return Icons.restaurant_outlined;
+      case TipCategory.hydration:
+        return Icons.water_drop_outlined;
+      case TipCategory.general:
+        return Icons.lightbulb_outline;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final colors = context.appColors;
+    final dismissed = ref.watch(tipDismissedProvider);
+    if (dismissed) return const SizedBox.shrink();
+
+    final tipAsync = ref.watch(dailyTipProvider);
+
+    return tipAsync.when(
+      data: (tip) {
+        final color = _colorFor(tip.category, colors);
+        return Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: colors.surface,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: color.withOpacity(0.3)),
+          ),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: color.withOpacity(0.12),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Icon(_iconFor(tip.category), size: 18, color: color),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'TIP OF THE DAY',
+                      style: AppFonts.mono(
+                        fontSize: 10,
+                        color: color,
+                        letterSpacing: 1,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      tip.message,
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: colors.textPrimary,
+                        height: 1.4,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              GestureDetector(
+                onTap: () => ref.read(tipDismissedProvider.notifier).state = true,
+                child: Icon(Icons.close, size: 16, color: colors.textMuted),
+              ),
+            ],
+          ),
+        );
+      },
+      loading: () => Container(
+        height: 76,
+        decoration: BoxDecoration(
+          color: colors.surface,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: colors.divider),
+        ),
+      ),
+      // If the tip genuinely fails to load, just don't show the card
+      // rather than showing an error state for something this low-stakes.
+      error: (_, __) => const SizedBox.shrink(),
     );
   }
 }
