@@ -6,6 +6,7 @@ import 'package:image_picker/image_picker.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../shared/widgets/receipt_decorations.dart';
+import '../../../shared/widgets/serving_quantity_picker.dart';
 
 // Every color below comes from context.appColors (colors.*), same as
 // Dashboard / Scan / Food Log. AppTheme is only imported for AppFonts.mono
@@ -101,6 +102,10 @@ class _BarcodeScreenState extends State<BarcodeScreen> {
 
   void _showFoodResult(Map<String, dynamic> food) {
     final colors = context.appColors;
+    Map<String, dynamic> scaledFood = Map.from(food);
+    String servingSize = '1 serving';
+    double quantity = 1.0;
+
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -108,111 +113,138 @@ class _BarcodeScreenState extends State<BarcodeScreen> {
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
-      builder: (context) => Padding(
-        padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
-        child: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Handle bar
-              Center(
-                child: Container(
-                  width: 40,
-                  height: 4,
-                  decoration: BoxDecoration(
-                    color: colors.divider,
-                    borderRadius: BorderRadius.circular(2),
+      builder: (sheetContext) => StatefulBuilder(
+        builder: (sheetContext, setSheetState) => Padding(
+          padding: EdgeInsets.fromLTRB(
+            20,
+            12,
+            20,
+            24 + MediaQuery.of(sheetContext).viewInsets.bottom,
+          ),
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Handle bar
+                Center(
+                  child: Container(
+                    width: 40,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: colors.divider,
+                      borderRadius: BorderRadius.circular(2),
+                    ),
                   ),
                 ),
-              ),
-              const SizedBox(height: 16),
+                const SizedBox(height: 16),
 
-              // Product card — same dark "nutrition facts" header
-              // treatment (barcode strip, mono eyebrow, zigzag tear,
-              // macro chip footer) as the Scan screen's result card,
-              // since this is the same moment — a product just got
-              // identified — via a different input method.
-              _ProductResultCard(food: food),
+                // Product card — same dark "nutrition facts" header
+                // treatment (barcode strip, mono eyebrow, zigzag tear,
+                // macro chip footer) as the Scan screen's result card,
+                // since this is the same moment — a product just got
+                // identified — via a different input method. This
+                // stays showing the product's base (1×) values; the
+                // picker below is what actually gets logged.
+                _ProductResultCard(food: food),
 
-              const SizedBox(height: 20),
+                const SizedBox(height: 20),
 
-              // Meal type selector
-              Text(
-                'Add to meal',
-                style: TextStyle(
-                    fontWeight: FontWeight.w700,
-                    fontSize: 14,
-                    color: colors.textPrimary),
-              ),
-              const SizedBox(height: 10),
-              SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                child: Row(
-                  children: _mealTypes.map((meal) {
-                    final isSelected = _selectedMealType == meal;
-                    return GestureDetector(
-                      onTap: () => setState(() => _selectedMealType = meal),
-                      child: Container(
-                        margin: const EdgeInsets.only(right: 8),
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 16,
-                          vertical: 8,
-                        ),
-                        decoration: BoxDecoration(
-                          color: isSelected
-                              ? colors.labelCard
-                              : colors.surfaceVariant,
-                          borderRadius: BorderRadius.circular(20),
-                        ),
-                        child: Text(
-                          meal[0].toUpperCase() + meal.substring(1),
-                          style: TextStyle(
+                // Serving size / quantity — the adjusted total here,
+                // not the card above, is what gets written to
+                // food_logs when "Add to Log" is tapped.
+                ServingQuantityPicker(
+                  baseFood: food,
+                  onChanged: (scaled, serving, qty) {
+                    scaledFood = scaled;
+                    servingSize = serving;
+                    quantity = qty;
+                  },
+                ),
+
+                const SizedBox(height: 20),
+
+                // Meal type selector
+                Text(
+                  'Add to meal',
+                  style: TextStyle(
+                      fontWeight: FontWeight.w700,
+                      fontSize: 14,
+                      color: colors.textPrimary),
+                ),
+                const SizedBox(height: 10),
+                SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: Row(
+                    children: _mealTypes.map((meal) {
+                      final isSelected = _selectedMealType == meal;
+                      return GestureDetector(
+                        onTap: () =>
+                            setSheetState(() => _selectedMealType = meal),
+                        child: Container(
+                          margin: const EdgeInsets.only(right: 8),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 8,
+                          ),
+                          decoration: BoxDecoration(
                             color: isSelected
-                                ? Colors.white
-                                : colors.textSecondary,
-                            fontWeight: FontWeight.w500,
-                            fontSize: 13,
+                                ? colors.labelCard
+                                : colors.surfaceVariant,
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          child: Text(
+                            meal[0].toUpperCase() + meal.substring(1),
+                            style: TextStyle(
+                              color: isSelected
+                                  ? Colors.white
+                                  : colors.textSecondary,
+                              fontWeight: FontWeight.w500,
+                              fontSize: 13,
+                            ),
                           ),
                         ),
-                      ),
-                    );
-                  }).toList(),
-                ),
-              ),
-              const SizedBox(height: 20),
-
-              // Log button — inherits accent fill / accentOnColor text
-              // from ElevatedButtonThemeData.
-              ElevatedButton(
-                onPressed: _isLoading ? null : () => _logFood(food),
-                child: _isLoading
-                    ? SizedBox(
-                  height: 20,
-                  width: 20,
-                  child: CircularProgressIndicator(
-                    color: colors.accentOnColor,
-                    strokeWidth: 2,
+                      );
+                    }).toList(),
                   ),
-                )
-                    : const Text('Add to Log'),
-              ),
-              const SizedBox(height: 8),
-              OutlinedButton(
-                onPressed: () {
-                  Navigator.pop(context);
-                  setState(() => _isScanned = false);
-                },
-                child: const Text('Scan Again'),
-              ),
-            ],
+                ),
+                const SizedBox(height: 20),
+
+                // Log button — inherits accent fill / accentOnColor text
+                // from ElevatedButtonThemeData.
+                ElevatedButton(
+                  onPressed: _isLoading
+                      ? null
+                      : () => _logFood(scaledFood, servingSize, quantity),
+                  child: _isLoading
+                      ? SizedBox(
+                    height: 20,
+                    width: 20,
+                    child: CircularProgressIndicator(
+                      color: colors.accentOnColor,
+                      strokeWidth: 2,
+                    ),
+                  )
+                      : const Text('Add to Log'),
+                ),
+                const SizedBox(height: 8),
+                OutlinedButton(
+                  onPressed: () {
+                    Navigator.pop(sheetContext);
+                    setState(() => _isScanned = false);
+                  },
+                  child: const Text('Scan Again'),
+                ),
+              ],
+            ),
           ),
         ),
       ),
     ).whenComplete(() => setState(() => _isScanned = false));
   }
 
-  Future<void> _logFood(Map<String, dynamic> food) async {
+  Future<void> _logFood(
+      Map<String, dynamic> food, String servingSize, double quantity) async {
     setState(() => _isLoading = true);
     try {
       final supabase = Supabase.instance.client;
@@ -226,6 +258,8 @@ class _BarcodeScreenState extends State<BarcodeScreen> {
         'protein': food['protein'],
         'carbs': food['carbs'],
         'fat': food['fat'],
+        'serving_size': servingSize,
+        'quantity': quantity,
         'meal_type': _selectedMealType,
         'logged_at': DateTime.now().toIso8601String(),
       });
