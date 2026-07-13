@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import '../../../core/services/fatsecret_service.dart';
+import '../../../core/services/food_data_service.dart';
 import 'package:image_picker/image_picker.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/app_colors.dart';
@@ -82,7 +82,7 @@ class _BarcodeScreenState extends State<BarcodeScreen> {
     final code = barcode!.rawValue!;
 
     try {
-      final food = await fatSecretService.getFoodByBarcode(code);
+      final food = await foodDataService.getFoodByBarcode(code);
       if (food != null && mounted) {
         _showFoodResult(food);
       } else {

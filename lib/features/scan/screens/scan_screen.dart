@@ -2,7 +2,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import '../../../core/services/fatsecret_service.dart';
+import '../../../core/services/food_data_service.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../shared/widgets/dotted_leader_row.dart';
@@ -56,7 +56,7 @@ class _ScanScreenState extends State<ScanScreen> {
   Future<void> _analyzeImage(File image) async {
     setState(() => _isAnalyzing = true);
     try {
-      final result = await fatSecretService.recognizeFood(image);
+      final result = await foodDataService.recognizeFood(image);
 
       if (result != null) {
         setState(() => _scanResult = result);

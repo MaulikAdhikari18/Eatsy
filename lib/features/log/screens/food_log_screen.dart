@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import '../../../core/services/fatsecret_service.dart';
+import '../../../core/services/food_data_service.dart';
 import '../../../features/dashboard/controllers/dashboard_controller.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/app_colors.dart';
@@ -81,7 +81,7 @@ class _FoodLogScreenState extends ConsumerState<FoodLogScreen> {
     }
     setState(() => _isSearching = true);
     try {
-      final results = await fatSecretService.searchFood(query);
+      final results = await foodDataService.searchFood(query);
       setState(() => _searchResults = results);
     } catch (e) {
       if (mounted) {
