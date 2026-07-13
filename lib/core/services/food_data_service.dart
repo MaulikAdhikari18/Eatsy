@@ -49,6 +49,8 @@ class FoodDataService {
           'action': 'process',
           'json': 1,
           'page_size': 20,
+          'lc': 'en',
+          'fields': 'product_name,product_name_en,nutriments,serving_size,brands',
         },
         options: _options,
       );
@@ -58,15 +60,19 @@ class FoodDataService {
 
       final q = query.toLowerCase();
       final results = products
-          .map((p) => _mapProduct(p as Map<String, dynamic>))
+      // requireEnglishName: true — search has many candidate
+      // products, so it can afford to just skip any that don't
+      // have an English name entered yet rather than show one in
+      // Spanish/French/etc.
+          .map((p) => _mapProduct(p as Map<String, dynamic>, requireEnglishName: true))
           .whereType<Map<String, dynamic>>()
       // The legacy search endpoint does loose/fuzzy matching, not
       // real relevance ranking — it can return products that don't
       // actually contain the search term at all (e.g. "salmon"
       // matching Spanish products containing "sal", the word for
       // salt, as a substring). Enforcing a real match on the
-      // product name client-side is the only reliable way to keep
-      // results actually relevant to what was typed.
+      // (now English) product name client-side is the only
+      // reliable way to keep results actually relevant.
           .where((f) => f['food_name'].toString().toLowerCase().contains(q))
           .toList();
 
@@ -91,7 +97,8 @@ class FoodDataService {
       final response = await _dio.get(
         '$_baseUrl/api/v2/product/$barcode.json',
         queryParameters: {
-          'fields': 'product_name,nutriments,serving_size,brands',
+          'fields': 'product_name,product_name_en,nutriments,serving_size,brands',
+          'lc': 'en',
         },
         options: _options,
       );
@@ -100,7 +107,8 @@ class FoodDataService {
       // means the barcode isn't in the database.
       if (response.data['status'] != 1) return null;
 
-      return _mapProduct(response.data['product'] as Map<String, dynamic>);
+      return _mapProduct(response.data['product'] as Map<String, dynamic>,
+          requireEnglishName: false);
     } catch (e) {
       print('❌ Barcode error: $e');
       return null;
@@ -116,19 +124,46 @@ class FoodDataService {
   /// nothing downstream (food_log_screen, scan_screen, barcode_screen)
   /// needs to change how it reads a result.
   ///
-  /// Open Food Facts' nutrient data is fundamentally "per 100g" unless
-  /// a product also has a known serving_size *and* matching _serving
-  /// nutrient fields. Rather than guess a serving conversion that could
-  /// be silently wrong, this prefers real per-serving data when Open
-  /// Food Facts actually has it, and otherwise falls back to per-100g
-  /// with "(per 100g)" appended to the name — so what quantity the
-  /// numbers refer to is never ambiguous to whoever's logging it.
-  Map<String, dynamic>? _mapProduct(Map<String, dynamic> product) {
+  /// Name resolution: Open Food Facts stores a generic `product_name`
+  /// (whatever language the contributor typed it in) alongside
+  /// optional per-language fields like `product_name_en`. This always
+  /// prefers the English field when present.
+  /// - requireEnglishName: true (search) — if there's no English name,
+  ///   the product is dropped entirely. Search has many candidates, so
+  ///   skipping an untranslated one just means a different result takes
+  ///   its place instead of showing Spanish/French/etc.
+  /// - requireEnglishName: false (barcode) — falls back to the generic
+  ///   name if no English one exists, since a barcode scan has exactly
+  ///   one product and no alternative to substitute; showing *a* name
+  ///   is better than showing nothing for a product that's otherwise a
+  ///   perfectly valid, confirmed match.
+  ///
+  /// Nutrient data is fundamentally "per 100g" unless a product also
+  /// has a known serving_size *and* matching _serving nutrient fields.
+  /// Rather than guess a serving conversion that could be silently
+  /// wrong, this prefers real per-serving data when Open Food Facts
+  /// actually has it, and otherwise falls back to per-100g with
+  /// "(per 100g)" appended to the name — so what quantity the numbers
+  /// refer to is never ambiguous to whoever's logging it.
+  Map<String, dynamic>? _mapProduct(
+      Map<String, dynamic> product, {
+        required bool requireEnglishName,
+      }) {
     final nutriments = product['nutriments'] as Map<String, dynamic>?;
     if (nutriments == null) return null;
 
-    final name = product['product_name']?.toString();
-    if (name == null || name.isEmpty) return null;
+    final englishName = product['product_name_en']?.toString();
+    final genericName = product['product_name']?.toString();
+
+    String? name;
+    if (englishName != null && englishName.isNotEmpty) {
+      name = englishName;
+    } else if (!requireEnglishName &&
+        genericName != null &&
+        genericName.isNotEmpty) {
+      name = genericName;
+    }
+    if (name == null) return null;
 
     final hasServingData = product['serving_size'] != null &&
         nutriments['energy-kcal_serving'] != null;
