@@ -8,6 +8,7 @@ import '../../goals/screens/goals_screen.dart';
 import '../controllers/dashboard_controller.dart';
 import '../controllers/water_controller.dart';
 import '../controllers/tip_controller.dart';
+import '../controllers/weekly_trends_controller.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:go_router/go_router.dart';
 import '../../mealplan/screens/meal_plan_screen.dart';
@@ -229,6 +230,7 @@ class _HomeTab extends ConsumerWidget {
     final today = DateFormat('EEE MMM d').format(DateTime.now()).toUpperCase();
     final summaryAsync = ref.watch(dashboardSummaryProvider);
     final waterAsync = ref.watch(waterSummaryProvider);
+    final trendsAsync = ref.watch(weeklyTrendsProvider);
     final colors = context.appColors;
 
     return Scaffold(
@@ -239,6 +241,7 @@ class _HomeTab extends ConsumerWidget {
           onRefresh: () async {
             ref.invalidate(dashboardSummaryProvider);
             ref.invalidate(waterSummaryProvider);
+            ref.invalidate(weeklyTrendsProvider);
           },
           child: SingleChildScrollView(
             physics: const AlwaysScrollableScrollPhysics(),
@@ -399,6 +402,14 @@ class _HomeTab extends ConsumerWidget {
                     ),
                   ),
                   error: (_, __) => _EmptyReceipt(colors: colors),
+                ),
+
+                const SizedBox(height: 24),
+
+                trendsAsync.when(
+                  data: (summary) => _WeeklyTrendsCard(summary: summary),
+                  loading: () => _WeeklyTrendsSkeleton(colors: colors),
+                  error: (_, __) => const SizedBox.shrink(),
                 ),
               ],
             ),
@@ -1040,6 +1051,304 @@ class _EmptyReceipt extends StatelessWidget {
           Text('Tap Scan or Search to add your first meal',
               style: TextStyle(color: colors.textMuted, fontSize: 12)),
         ],
+      ),
+    );
+  }
+}
+
+const _monthLabels = [
+  'JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN',
+  'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC',
+];
+
+String _weekRangeLabel(DateTime start, DateTime end) {
+  final startLabel = '${_monthLabels[start.month - 1]} ${start.day}';
+  if (start.month == end.month) return '$startLabel–${end.day}';
+  return '$startLabel – ${_monthLabels[end.month - 1]} ${end.day}';
+}
+
+/// Always Mon–Sun, never a rolling 7-day window — see
+/// weekly_trends_controller.dart. Tapping a bar swaps the detail panel
+/// below the chart to that day; the currently-selected bar gets an
+/// outline, and today's bar is filled in the dark ink color instead of
+/// accent so it reads as "today" at a glance, same convention as the
+/// day selector on Meal Plan.
+class _WeeklyTrendsCard extends ConsumerStatefulWidget {
+  final WeeklyTrendsSummary summary;
+  const _WeeklyTrendsCard({required this.summary});
+
+  @override
+  ConsumerState<_WeeklyTrendsCard> createState() => _WeeklyTrendsCardState();
+}
+
+class _WeeklyTrendsCardState extends ConsumerState<_WeeklyTrendsCard> {
+  late int _selectedIndex;
+
+  @override
+  void initState() {
+    super.initState();
+    _selectedIndex = (DateTime.now().weekday - 1).clamp(0, 6);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.appColors;
+    final days = widget.summary.days;
+    final todayIndex = (DateTime.now().weekday - 1).clamp(0, 6);
+    final selected = days[_selectedIndex];
+
+    final tallestDay =
+    days.map((d) => d.calories).fold<double>(0, (a, b) => a > b ? a : b);
+    final chartMax = tallestDay > widget.summary.goalCalories
+        ? tallestDay
+        : widget.summary.goalCalories.toDouble();
+
+    const chartHeight = 110.0;
+    // A dashed line would need a CustomPainter — a thin muted solid
+    // line conveys "this is the goal" just as clearly at a fraction of
+    // the code, so that's what this is instead of a literal dashed rule.
+    final goalLineFromBottom = chartMax > 0
+        ? chartHeight * (widget.summary.goalCalories / chartMax).clamp(0.0, 1.0)
+        : 0.0;
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: colors.surface,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: colors.divider),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'WEEKLY TRENDS',
+                style: AppFonts.mono(
+                    fontSize: 11, color: colors.textSecondary, letterSpacing: 1),
+              ),
+              Text(
+                _weekRangeLabel(days.first.date, days.last.date),
+                style: AppFonts.mono(fontSize: 10, color: colors.textMuted),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+
+          SizedBox(
+            height: chartHeight,
+            child: Stack(
+              children: [
+                Positioned(
+                  left: 0,
+                  right: 0,
+                  bottom: goalLineFromBottom,
+                  child: Container(height: 1.5, color: colors.textMuted.withOpacity(0.4)),
+                ),
+                Positioned.fill(
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: List.generate(7, (i) {
+                      final d = days[i];
+                      final h = chartMax > 0
+                          ? (d.calories / chartMax).clamp(0.0, 1.0)
+                          : 0.0;
+                      final isToday = i == todayIndex;
+                      final isSelected = i == _selectedIndex;
+                      return Expanded(
+                        child: GestureDetector(
+                          onTap: () => setState(() => _selectedIndex = i),
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 3),
+                            child: Container(
+                              height: chartHeight * h,
+                              decoration: BoxDecoration(
+                                color: isToday ? colors.labelCard : colors.accent,
+                                borderRadius:
+                                const BorderRadius.vertical(top: Radius.circular(4)),
+                                border: isSelected
+                                    ? Border.all(color: colors.textPrimary, width: 2)
+                                    : null,
+                              ),
+                            ),
+                          ),
+                        ),
+                      );
+                    }),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 6),
+
+          Row(
+            children: List.generate(7, (i) {
+              final isToday = i == todayIndex;
+              return Expanded(
+                child: Text(
+                  days[i].label,
+                  textAlign: TextAlign.center,
+                  style: AppFonts.mono(
+                    fontSize: 10,
+                    fontWeight: isToday ? FontWeight.w700 : FontWeight.w500,
+                    color: isToday ? colors.textPrimary : colors.textMuted,
+                  ),
+                ),
+              );
+            }),
+          ),
+          const SizedBox(height: 14),
+
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+            decoration: BoxDecoration(
+              color: colors.surfaceVariant,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: selected.mealCount == 0
+                ? Text(
+              '${selected.label} — nothing logged',
+              style: TextStyle(fontSize: 12, color: colors.textMuted),
+            )
+                : Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      selected.label,
+                      style: AppFonts.mono(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                          color: colors.textPrimary),
+                    ),
+                    Text(
+                      '${selected.calories.toInt()} kcal',
+                      style: AppFonts.mono(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w600,
+                          color: colors.textPrimary),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 10),
+                Row(
+                  children: [
+                    _TrendMacro(
+                        label: 'PROTEIN',
+                        value: '${selected.protein.toInt()}g',
+                        color: colors.protein),
+                    _TrendMacro(
+                        label: 'CARBS',
+                        value: '${selected.carbs.toInt()}g',
+                        color: colors.carbs),
+                    _TrendMacro(
+                        label: 'FAT',
+                        value: '${selected.fat.toInt()}g',
+                        color: colors.fat),
+                    const Spacer(),
+                    Text(
+                      '${selected.mealCount} meal${selected.mealCount == 1 ? '' : 's'}',
+                      style: AppFonts.mono(fontSize: 11, color: colors.textMuted),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 14),
+
+          Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('AVG / DAY',
+                        style: AppFonts.mono(
+                            fontSize: 9, color: colors.textMuted, letterSpacing: 0.5)),
+                    const SizedBox(height: 2),
+                    Text(
+                      '${widget.summary.avgCaloriesPerDay.toInt()} kcal',
+                      style: AppFonts.mono(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                          color: colors.textPrimary),
+                    ),
+                  ],
+                ),
+              ),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('WEIGHT THIS WEEK',
+                        style: AppFonts.mono(
+                            fontSize: 9, color: colors.textMuted, letterSpacing: 0.5)),
+                    const SizedBox(height: 2),
+                    Text(
+                      widget.summary.weightChangeKg == null
+                          ? 'Not enough data'
+                          : '${widget.summary.weightChangeKg! >= 0 ? '+' : ''}'
+                          '${widget.summary.weightChangeKg!.toStringAsFixed(1)} kg',
+                      style: AppFonts.mono(
+                        fontSize: widget.summary.weightChangeKg == null ? 12 : 16,
+                        fontWeight: FontWeight.w600,
+                        color: widget.summary.weightChangeKg == null
+                            ? colors.textMuted
+                            : colors.protein,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _TrendMacro extends StatelessWidget {
+  final String label;
+  final String value;
+  final Color color;
+  const _TrendMacro({required this.label, required this.value, required this.color});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(right: 14),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(label, style: AppFonts.mono(fontSize: 9, color: color, letterSpacing: 0.3)),
+          Text(value,
+              style: AppFonts.mono(fontSize: 12, fontWeight: FontWeight.w600, color: color)),
+        ],
+      ),
+    );
+  }
+}
+
+class _WeeklyTrendsSkeleton extends StatelessWidget {
+  final AppColors colors;
+  const _WeeklyTrendsSkeleton({required this.colors});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: 280,
+      decoration: BoxDecoration(
+        color: colors.surface,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: colors.divider),
       ),
     );
   }
