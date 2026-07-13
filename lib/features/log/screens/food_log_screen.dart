@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'dart:async';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../core/services/food_data_service.dart';
 import '../../../features/dashboard/controllers/dashboard_controller.dart';
@@ -21,6 +22,11 @@ class FoodLogScreen extends ConsumerStatefulWidget {
 
 class _FoodLogScreenState extends ConsumerState<FoodLogScreen> {
   final _searchController = TextEditingController();
+  // Open Food Facts allows only 10 search requests/min per IP and
+  // explicitly says not to use it for search-as-you-type — this timer
+  // waits for a pause in typing before actually firing a request,
+  // instead of calling the API on every keystroke.
+  Timer? _searchDebounce;
   List<Map<String, dynamic>> _searchResults = [];
   List<Map<String, dynamic>> _todaysLogs = [];
   bool _isSearching = false;
@@ -39,6 +45,7 @@ class _FoodLogScreenState extends ConsumerState<FoodLogScreen> {
 
   @override
   void dispose() {
+    _searchDebounce?.cancel();
     _searchController.dispose();
     super.dispose();
   }
@@ -72,6 +79,21 @@ class _FoodLogScreenState extends ConsumerState<FoodLogScreen> {
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
+  }
+
+  /// Called directly by the search field's onChanged. Cancels any
+  /// pending search and schedules a new one 500ms out, so a request is
+  /// only actually sent once the person pauses typing — respects Open
+  /// Food Facts' 10 req/min limit instead of firing on every keystroke.
+  void _onSearchChanged(String query) {
+    _searchDebounce?.cancel();
+    if (query.isEmpty) {
+      setState(() => _searchResults = []);
+      return;
+    }
+    _searchDebounce = Timer(const Duration(milliseconds: 500), () {
+      _searchFood(query);
+    });
   }
 
   Future<void> _searchFood(String query) async {
@@ -122,6 +144,7 @@ class _FoodLogScreenState extends ConsumerState<FoodLogScreen> {
             backgroundColor: colors.accent,
           ),
         );
+        _searchDebounce?.cancel();
         _searchController.clear();
         setState(() => _searchResults = []);
         _loadTodaysLogs();
@@ -195,7 +218,7 @@ class _FoodLogScreenState extends ConsumerState<FoodLogScreen> {
                 children: [
                   TextField(
                     controller: _searchController,
-                    onChanged: _searchFood,
+                    onChanged: _onSearchChanged,
                     decoration: InputDecoration(
                       hintText: 'Search for food...',
                       prefixIcon: const Icon(Icons.search),
@@ -203,6 +226,7 @@ class _FoodLogScreenState extends ConsumerState<FoodLogScreen> {
                           ? IconButton(
                         icon: const Icon(Icons.clear),
                         onPressed: () {
+                          _searchDebounce?.cancel();
                           _searchController.clear();
                           setState(() => _searchResults = []);
                         },

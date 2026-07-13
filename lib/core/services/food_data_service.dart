@@ -56,9 +56,18 @@ class FoodDataService {
       final products = response.data['products'] as List?;
       if (products == null || products.isEmpty) return _localSearch(query);
 
+      final q = query.toLowerCase();
       final results = products
           .map((p) => _mapProduct(p as Map<String, dynamic>))
           .whereType<Map<String, dynamic>>()
+      // The legacy search endpoint does loose/fuzzy matching, not
+      // real relevance ranking — it can return products that don't
+      // actually contain the search term at all (e.g. "salmon"
+      // matching Spanish products containing "sal", the word for
+      // salt, as a substring). Enforcing a real match on the
+      // product name client-side is the only reliable way to keep
+      // results actually relevant to what was typed.
+          .where((f) => f['food_name'].toString().toLowerCase().contains(q))
           .toList();
 
       return results.isEmpty ? _localSearch(query) : results;
