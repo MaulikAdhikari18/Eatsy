@@ -168,7 +168,7 @@ class ServingQuantityPickerState extends State<ServingQuantityPicker> {
                           fontSize: 11,
                           color: colors.textMuted,
                           letterSpacing: 0.5)),
-                  Text('${cal.round()} kcal',
+                  Text('${cal.toInt()} kcal',
                       style: AppFonts.mono(
                           fontSize: 20,
                           fontWeight: FontWeight.w700,
@@ -180,17 +180,17 @@ class ServingQuantityPickerState extends State<ServingQuantityPicker> {
                 children: [
                   _MiniMacroText(
                       label: 'PROTEIN',
-                      value: '${protein.round()}g',
+                      value: '${protein.toInt()}g',
                       color: colors.protein),
                   const SizedBox(width: 16),
                   _MiniMacroText(
                       label: 'CARBS',
-                      value: '${carbs.round()}g',
+                      value: '${carbs.toInt()}g',
                       color: colors.carbs),
                   const SizedBox(width: 16),
                   _MiniMacroText(
                       label: 'FAT',
-                      value: '${fat.round()}g',
+                      value: '${fat.toInt()}g',
                       color: colors.fat),
                 ],
               ),
