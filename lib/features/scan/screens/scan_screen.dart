@@ -7,6 +7,7 @@ import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../shared/widgets/dotted_leader_row.dart';
 import '../../../shared/widgets/receipt_decorations.dart';
+import '../../../shared/widgets/serving_quantity_picker.dart';
 
 // Every color below comes from context.appColors (colors.*), same as
 // the Dashboard and Food Log. AppTheme is only imported for
@@ -25,6 +26,13 @@ class _ScanScreenState extends State<ScanScreen> {
   Map<String, dynamic>? _scanResult;
   String _selectedMealType = 'breakfast';
   final ImagePicker _picker = ImagePicker();
+
+  // Set by ServingQuantityPicker's onChanged; starts as the raw
+  // detected result until the picker fires its first callback, same
+  // pattern as Food Log and Barcode.
+  Map<String, dynamic> _scaledResult = {};
+  String _servingSize = '1 serving';
+  double _quantity = 1.0;
 
   final List<String> _mealTypes = ['breakfast', 'lunch', 'dinner', 'snack'];
 
@@ -59,7 +67,12 @@ class _ScanScreenState extends State<ScanScreen> {
       final result = await foodDataService.recognizeFood(image);
 
       if (result != null) {
-        setState(() => _scanResult = result);
+        setState(() {
+          _scanResult = result;
+          _scaledResult = Map.from(result);
+          _servingSize = '1 serving';
+          _quantity = 1.0;
+        });
       } else {
         if (mounted) {
           final colors = context.appColors;
@@ -92,11 +105,13 @@ class _ScanScreenState extends State<ScanScreen> {
 
       await supabase.from('food_logs').insert({
         'user_id': userId,
-        'food_name': _scanResult!['food_name'],
-        'calories': _scanResult!['calories'],
-        'protein': _scanResult!['protein'],
-        'carbs': _scanResult!['carbs'],
-        'fat': _scanResult!['fat'],
+        'food_name': _scaledResult['food_name'] ?? _scanResult!['food_name'],
+        'calories': _scaledResult['calories'] ?? _scanResult!['calories'],
+        'protein': _scaledResult['protein'] ?? _scanResult!['protein'],
+        'carbs': _scaledResult['carbs'] ?? _scanResult!['carbs'],
+        'fat': _scaledResult['fat'] ?? _scanResult!['fat'],
+        'serving_size': _servingSize,
+        'quantity': _quantity,
         'meal_type': _selectedMealType,
         'logged_at': DateTime.now().toIso8601String(),
       });
@@ -257,6 +272,22 @@ class _ScanScreenState extends State<ScanScreen> {
               // calorie total, zigzag tear, macro strip footer.
               if (_scanResult != null) ...[
                 _ScanResultCard(result: _scanResult!),
+
+                const SizedBox(height: 20),
+
+                // Serving size / quantity — same picker as Food Log and
+                // Barcode. The card above keeps showing the raw detected
+                // 1× values; this is what actually gets logged.
+                ServingQuantityPicker(
+                  baseFood: _scanResult!,
+                  onChanged: (scaled, serving, qty) {
+                    setState(() {
+                      _scaledResult = scaled;
+                      _servingSize = serving;
+                      _quantity = qty;
+                    });
+                  },
+                ),
 
                 const SizedBox(height: 20),
 
