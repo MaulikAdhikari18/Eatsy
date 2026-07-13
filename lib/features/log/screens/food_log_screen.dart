@@ -7,6 +7,7 @@ import '../../../features/dashboard/controllers/dashboard_controller.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../shared/widgets/dotted_leader_row.dart';
+import '../../../shared/widgets/serving_quantity_picker.dart';
 
 // AppTheme is only used here for AppFonts.mono. Every color below comes
 // from context.appColors (colors.*) — same as the Dashboard. There is
@@ -116,7 +117,8 @@ class _FoodLogScreenState extends ConsumerState<FoodLogScreen> {
     }
   }
 
-  Future<void> _logFood(Map<String, dynamic> food) async {
+  Future<void> _logFood(Map<String, dynamic> food, String servingSize,
+      double quantity, String mealType) async {
     try {
       final supabase = Supabase.instance.client;
       final userId = supabase.auth.currentUser?.id;
@@ -129,7 +131,9 @@ class _FoodLogScreenState extends ConsumerState<FoodLogScreen> {
         'protein': food['protein'],
         'carbs': food['carbs'],
         'fat': food['fat'],
-        'meal_type': _selectedMealType,
+        'serving_size': servingSize,
+        'quantity': quantity,
+        'meal_type': mealType,
         'logged_at': DateTime.now().toIso8601String(),
       });
 
@@ -140,7 +144,7 @@ class _FoodLogScreenState extends ConsumerState<FoodLogScreen> {
         final colors = context.appColors;
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('${food['food_name']} added to $_selectedMealType!'),
+            content: Text('${food['food_name']} added to $mealType!'),
             backgroundColor: colors.accent,
           ),
         );
@@ -156,6 +160,125 @@ class _FoodLogScreenState extends ConsumerState<FoodLogScreen> {
         );
       }
     }
+  }
+
+  /// Opens the serving-size/quantity sheet for a search result. Meal
+  /// type defaults to whatever chip is selected on the main screen, but
+  /// can be changed inside the sheet without affecting that selection
+  /// until "Add to Log" is actually tapped.
+  void _showLogSheet(Map<String, dynamic> baseFood) {
+    final colors = context.appColors;
+    Map<String, dynamic> scaledFood = Map.from(baseFood);
+    String servingSize = '1 serving';
+    double quantity = 1.0;
+    String sheetMealType = _selectedMealType;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: colors.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (sheetContext) => StatefulBuilder(
+        builder: (sheetContext, setSheetState) => Padding(
+          padding: EdgeInsets.fromLTRB(
+            20,
+            12,
+            20,
+            24 + MediaQuery.of(sheetContext).viewInsets.bottom,
+          ),
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Center(
+                  child: Container(
+                    width: 40,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: colors.divider,
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  baseFood['food_name']?.toString() ?? '',
+                  style: TextStyle(
+                    fontSize: 17,
+                    fontWeight: FontWeight.w700,
+                    color: colors.textPrimary,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                ServingQuantityPicker(
+                  baseFood: baseFood,
+                  onChanged: (scaled, serving, qty) {
+                    scaledFood = scaled;
+                    servingSize = serving;
+                    quantity = qty;
+                  },
+                ),
+                const SizedBox(height: 20),
+                Text(
+                  'Add to meal',
+                  style: TextStyle(
+                      fontWeight: FontWeight.w700,
+                      fontSize: 14,
+                      color: colors.textPrimary),
+                ),
+                const SizedBox(height: 10),
+                SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: Row(
+                    children: _mealTypes.map((meal) {
+                      final isSelected = sheetMealType == meal;
+                      return GestureDetector(
+                        onTap: () =>
+                            setSheetState(() => sheetMealType = meal),
+                        child: Container(
+                          margin: const EdgeInsets.only(right: 8),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 8,
+                          ),
+                          decoration: BoxDecoration(
+                            color: isSelected
+                                ? colors.labelCard
+                                : colors.surfaceVariant,
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          child: Text(
+                            meal[0].toUpperCase() + meal.substring(1),
+                            style: TextStyle(
+                              color: isSelected
+                                  ? Colors.white
+                                  : colors.textSecondary,
+                              fontWeight: FontWeight.w500,
+                              fontSize: 13,
+                            ),
+                          ),
+                        ),
+                      );
+                    }).toList(),
+                  ),
+                ),
+                const SizedBox(height: 20),
+                ElevatedButton(
+                  onPressed: () {
+                    Navigator.pop(sheetContext);
+                    _logFood(scaledFood, servingSize, quantity, sheetMealType);
+                  },
+                  child: const Text('Add to Log'),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
   }
 
   Future<void> _deleteLog(String id) async {
@@ -303,7 +426,7 @@ class _FoodLogScreenState extends ConsumerState<FoodLogScreen> {
                     ),
                     trailing: IconButton(
                       icon: Icon(Icons.add_circle, color: colors.accent),
-                      onPressed: () => _logFood(food),
+                      onPressed: () => _showLogSheet(food),
                     ),
                   )).toList(),
                 ),
