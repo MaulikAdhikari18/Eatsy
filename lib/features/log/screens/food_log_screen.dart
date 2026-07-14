@@ -8,6 +8,7 @@ import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../shared/widgets/dotted_leader_row.dart';
 import '../../../shared/widgets/serving_quantity_picker.dart';
+import '../../../core/utils/serving_format.dart';
 
 // AppTheme is only used here for AppFonts.mono. Every color below comes
 // from context.appColors (colors.*) — same as the Dashboard. There is
@@ -486,34 +487,11 @@ class _FoodLogScreenState extends ConsumerState<FoodLogScreen> {
   }
 }
 
-/// Formats the small "×1.5 · 100g" line shown under a logged item's
-/// name — null when the row has neither serving_size nor quantity
-/// (i.e. it was logged before this feature existed), so old entries
-/// just show nothing extra rather than "×null" or similar.
-String? _servingSubtitle(Map<String, dynamic> item) {
-  final servingSize = item['serving_size']?.toString();
-  final quantityRaw = item['quantity'];
-  final quantity = quantityRaw == null ? null : (quantityRaw as num).toDouble();
-
-  // A quantity of exactly 1 isn't worth calling out — "×1" next to
-  // every single-serving item would just be noise.
-  final qtyLabel = (quantity != null && quantity != 1)
-      ? '×${quantity.toStringAsFixed(2).replaceFirst(RegExp(r'0$'), '')}'
-      : null;
-
-  if (qtyLabel != null && servingSize != null && servingSize.isNotEmpty) {
-    return '$qtyLabel · $servingSize';
-  }
-  if (qtyLabel != null) return qtyLabel;
-  if (servingSize != null && servingSize.isNotEmpty) return servingSize;
-  return null;
-}
-
 /// One meal-type card: colored left border matching `mealTypeColor`,
 /// an uppercase mono label (same treatment as the Dashboard's PROTEIN /
-/// CARBS / FAT labels), a dotted-leader row per food item, and a bold
-/// subtotal row — the exact pattern from the Food Log page of the
-/// Design Preview PDF.
+/// CARBS / FAT labels), a dotted-leader row per food item (with its
+/// logged serving size/quantity as a small subtitle beneath, when
+/// present), and a bold subtotal row.
 class _MealGroupCard extends StatelessWidget {
   final String mealType;
   final List<Map<String, dynamic>> items;
@@ -560,7 +538,7 @@ class _MealGroupCard extends StatelessWidget {
           ),
           const SizedBox(height: 10),
           ...items.map((item) {
-            final subtitle = _servingSubtitle(item);
+            final subtitle = servingSubtitle(item);
             return Dismissible(
               key: ValueKey(item['id'].toString()),
               direction: DismissDirection.endToStart,
@@ -579,16 +557,14 @@ class _MealGroupCard extends StatelessWidget {
                       label: item['food_name']?.toString() ?? '',
                       value: '${((item['calories'] ?? 0) as num).toInt()}',
                     ),
-                    // Older rows logged before this feature existed have
-                    // no serving_size/quantity — subtitle is simply
-                    // omitted for those instead of showing "null".
-                    if (subtitle != null) ...[
-                      const SizedBox(height: 2),
-                      Text(
-                        subtitle,
-                        style: AppFonts.mono(fontSize: 10, color: colors.textMuted),
+                    if (subtitle != null)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 2),
+                        child: Text(
+                          subtitle,
+                          style: TextStyle(fontSize: 11, color: colors.textMuted),
+                        ),
                       ),
-                    ],
                   ],
                 ),
               ),

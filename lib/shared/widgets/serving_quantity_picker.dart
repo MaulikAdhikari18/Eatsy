@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/theme/app_colors.dart';
+import '../../core/utils/serving_format.dart';
 
 /// Serving size (free text, purely a label) + quantity (the actual
 /// multiplier) picker shown between "a food was found" and "add it to
@@ -131,10 +132,13 @@ class ServingQuantityPickerState extends State<ServingQuantityPicker> {
             ),
             Expanded(
               child: Text(
-                // Whole numbers show as "1.0", not "1.0000000001" from
-                // float subtraction — round to 2dp then trim.
-                _quantity.toStringAsFixed(2).replaceFirst(
-                    RegExp(r'0$'), ''),
+                // FIX: was a local `.replaceFirst(RegExp(r'0$'), '')`,
+                // which only stripped one trailing zero — "1.0" stayed
+                // "1.0" instead of becoming "1". Now uses the shared
+                // formatQuantity() from serving_format.dart (also used
+                // by the "×2 · 1 cup" subtitle on Food Log/Dashboard),
+                // so there's exactly one place this logic lives.
+                formatQuantity(_quantity),
                 textAlign: TextAlign.center,
                 style: AppFonts.mono(
                     fontSize: 18,
