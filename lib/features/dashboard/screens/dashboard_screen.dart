@@ -969,6 +969,30 @@ class _QuickAction extends StatelessWidget {
   }
 }
 
+/// Same formatting as Food Log's identically-named helper — kept as a
+/// separate copy per-file rather than a shared import, consistent with
+/// how this codebase keeps each screen file self-contained rather than
+/// abstracting every small helper into shared/. Null when the row has
+/// neither serving_size nor quantity (logged before this feature
+/// existed), so old rows just show no subtitle rather than "×null".
+String? _servingSubtitle(Map<String, dynamic> item) {
+  final servingSize = item['serving_size']?.toString();
+  final quantityRaw = item['quantity'];
+  final quantity = quantityRaw == null ? null : (quantityRaw as num).toDouble();
+
+  // A quantity of exactly 1 isn't worth calling out on every item.
+  final qtyLabel = (quantity != null && quantity != 1)
+      ? '×${quantity.toStringAsFixed(2).replaceFirst(RegExp(r'0$'), '')}'
+      : null;
+
+  if (qtyLabel != null && servingSize != null && servingSize.isNotEmpty) {
+    return '$qtyLabel · $servingSize';
+  }
+  if (qtyLabel != null) return qtyLabel;
+  if (servingSize != null && servingSize.isNotEmpty) return servingSize;
+  return null;
+}
+
 class _ReceiptCard extends StatelessWidget {
   final List<Map<String, dynamic>> meals;
   const _ReceiptCard({required this.meals});
@@ -1001,14 +1025,32 @@ class _ReceiptCard extends StatelessWidget {
           ),
           child: Column(
             children: [
-              ...meals.take(6).map((m) => Padding(
-                padding: const EdgeInsets.symmetric(vertical: 8),
-                child: DottedLeaderRow(
-                  label: m['food_name']?.toString() ?? '',
-                  value: '${((m['calories'] ?? 0) as num).toInt()}',
-                  valueColor: colors.mealTypeColor(m['meal_type']?.toString() ?? ''),
-                ),
-              )),
+              ...meals.take(6).map((m) {
+                final subtitle = _servingSubtitle(m);
+                return Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 8),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      DottedLeaderRow(
+                        label: m['food_name']?.toString() ?? '',
+                        value: '${((m['calories'] ?? 0) as num).toInt()}',
+                        valueColor: colors.mealTypeColor(m['meal_type']?.toString() ?? ''),
+                      ),
+                      // Same rule as Food Log: rows logged before this
+                      // feature existed have no serving_size/quantity,
+                      // so they simply show no subtitle at all.
+                      if (subtitle != null) ...[
+                        const SizedBox(height: 2),
+                        Text(
+                          subtitle,
+                          style: AppFonts.mono(fontSize: 10, color: colors.textMuted),
+                        ),
+                      ],
+                    ],
+                  ),
+                );
+              }),
               Divider(color: colors.divider, height: 16),
               Padding(
                 padding: const EdgeInsets.only(bottom: 10),

@@ -486,6 +486,29 @@ class _FoodLogScreenState extends ConsumerState<FoodLogScreen> {
   }
 }
 
+/// Formats the small "×1.5 · 100g" line shown under a logged item's
+/// name — null when the row has neither serving_size nor quantity
+/// (i.e. it was logged before this feature existed), so old entries
+/// just show nothing extra rather than "×null" or similar.
+String? _servingSubtitle(Map<String, dynamic> item) {
+  final servingSize = item['serving_size']?.toString();
+  final quantityRaw = item['quantity'];
+  final quantity = quantityRaw == null ? null : (quantityRaw as num).toDouble();
+
+  // A quantity of exactly 1 isn't worth calling out — "×1" next to
+  // every single-serving item would just be noise.
+  final qtyLabel = (quantity != null && quantity != 1)
+      ? '×${quantity.toStringAsFixed(2).replaceFirst(RegExp(r'0$'), '')}'
+      : null;
+
+  if (qtyLabel != null && servingSize != null && servingSize.isNotEmpty) {
+    return '$qtyLabel · $servingSize';
+  }
+  if (qtyLabel != null) return qtyLabel;
+  if (servingSize != null && servingSize.isNotEmpty) return servingSize;
+  return null;
+}
+
 /// One meal-type card: colored left border matching `mealTypeColor`,
 /// an uppercase mono label (same treatment as the Dashboard's PROTEIN /
 /// CARBS / FAT labels), a dotted-leader row per food item, and a bold
@@ -536,23 +559,41 @@ class _MealGroupCard extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 10),
-          ...items.map((item) => Dismissible(
-            key: ValueKey(item['id'].toString()),
-            direction: DismissDirection.endToStart,
-            background: Container(
-              alignment: Alignment.centerRight,
-              padding: const EdgeInsets.only(right: 4),
-              child: const Icon(Icons.delete_outline, color: Colors.red, size: 20),
-            ),
-            onDismissed: (_) => onDelete(item['id'].toString()),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(vertical: 6),
-              child: DottedLeaderRow(
-                label: item['food_name']?.toString() ?? '',
-                value: '${((item['calories'] ?? 0) as num).toInt()}',
+          ...items.map((item) {
+            final subtitle = _servingSubtitle(item);
+            return Dismissible(
+              key: ValueKey(item['id'].toString()),
+              direction: DismissDirection.endToStart,
+              background: Container(
+                alignment: Alignment.centerRight,
+                padding: const EdgeInsets.only(right: 4),
+                child: const Icon(Icons.delete_outline, color: Colors.red, size: 20),
               ),
-            ),
-          )),
+              onDismissed: (_) => onDelete(item['id'].toString()),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 6),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    DottedLeaderRow(
+                      label: item['food_name']?.toString() ?? '',
+                      value: '${((item['calories'] ?? 0) as num).toInt()}',
+                    ),
+                    // Older rows logged before this feature existed have
+                    // no serving_size/quantity — subtitle is simply
+                    // omitted for those instead of showing "null".
+                    if (subtitle != null) ...[
+                      const SizedBox(height: 2),
+                      Text(
+                        subtitle,
+                        style: AppFonts.mono(fontSize: 10, color: colors.textMuted),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            );
+          }),
           Divider(height: 18, color: colors.divider),
           DottedLeaderRow(
             label: 'Subtotal',
