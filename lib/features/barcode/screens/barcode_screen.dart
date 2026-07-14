@@ -105,6 +105,14 @@ class _BarcodeScreenState extends State<BarcodeScreen> {
     Map<String, dynamic> scaledFood = Map.from(food);
     String servingSize = '1 serving';
     double quantity = 1.0;
+    // Local to this sheet, same reasoning as food_log_screen.dart's
+    // sheetMealType: a tap on a meal-type chip should only take effect
+    // if "Add to Log" is actually pressed. Mutating the screen-level
+    // _selectedMealType directly here would leak the choice across a
+    // cancelled sheet — e.g. pick "Dinner", tap "Scan Again" instead of
+    // confirming, then scan a second product and find "Dinner" already
+    // selected even though nothing was ever logged.
+    String sheetMealType = _selectedMealType;
 
     showModalBottomSheet(
       context: context,
@@ -177,10 +185,10 @@ class _BarcodeScreenState extends State<BarcodeScreen> {
                   scrollDirection: Axis.horizontal,
                   child: Row(
                     children: _mealTypes.map((meal) {
-                      final isSelected = _selectedMealType == meal;
+                      final isSelected = sheetMealType == meal;
                       return GestureDetector(
                         onTap: () =>
-                            setSheetState(() => _selectedMealType = meal),
+                            setSheetState(() => sheetMealType = meal),
                         child: Container(
                           margin: const EdgeInsets.only(right: 8),
                           padding: const EdgeInsets.symmetric(
@@ -215,7 +223,7 @@ class _BarcodeScreenState extends State<BarcodeScreen> {
                 ElevatedButton(
                   onPressed: _isLoading
                       ? null
-                      : () => _logFood(scaledFood, servingSize, quantity),
+                      : () => _logFood(scaledFood, servingSize, quantity, sheetMealType),
                   child: _isLoading
                       ? SizedBox(
                     height: 20,
@@ -243,8 +251,8 @@ class _BarcodeScreenState extends State<BarcodeScreen> {
     ).whenComplete(() => setState(() => _isScanned = false));
   }
 
-  Future<void> _logFood(
-      Map<String, dynamic> food, String servingSize, double quantity) async {
+  Future<void> _logFood(Map<String, dynamic> food, String servingSize,
+      double quantity, String mealType) async {
     setState(() => _isLoading = true);
     try {
       final supabase = Supabase.instance.client;
@@ -260,12 +268,17 @@ class _BarcodeScreenState extends State<BarcodeScreen> {
         'fat': food['fat'],
         'serving_size': servingSize,
         'quantity': quantity,
-        'meal_type': _selectedMealType,
+        'meal_type': mealType,
         'logged_at': DateTime.now().toIso8601String(),
       });
 
       if (mounted) {
         final colors = context.appColors;
+        // Persist the meal type that was actually used for this log,
+        // so the main screen's chip reflects the last real action —
+        // same intent as before, just now driven by the confirmed
+        // sheet value instead of a field that could've drifted.
+        setState(() => _selectedMealType = mealType);
         Navigator.pop(context);
         Navigator.pop(context);
         ScaffoldMessenger.of(context).showSnackBar(

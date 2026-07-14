@@ -168,7 +168,10 @@ class ServingQuantityPickerState extends State<ServingQuantityPicker> {
                           fontSize: 11,
                           color: colors.textMuted,
                           letterSpacing: 0.5)),
-                  Text('${cal.toInt()} kcal',
+                  // FIX: was cal.toInt(), which truncates instead of
+                  // rounding — 149.9 kcal displayed as "149 kcal"
+                  // instead of "150 kcal". .round() is correct here.
+                  Text('${cal.round()} kcal',
                       style: AppFonts.mono(
                           fontSize: 20,
                           fontWeight: FontWeight.w700,
@@ -178,19 +181,21 @@ class ServingQuantityPickerState extends State<ServingQuantityPicker> {
               const SizedBox(height: 10),
               Row(
                 children: [
+                  // FIX: same truncation-vs-rounding issue as calories
+                  // above, applied to all three macros for consistency.
                   _MiniMacroText(
                       label: 'PROTEIN',
-                      value: '${protein.toInt()}g',
+                      value: '${protein.round()}g',
                       color: colors.protein),
                   const SizedBox(width: 16),
                   _MiniMacroText(
                       label: 'CARBS',
-                      value: '${carbs.toInt()}g',
+                      value: '${carbs.round()}g',
                       color: colors.carbs),
                   const SizedBox(width: 16),
                   _MiniMacroText(
                       label: 'FAT',
-                      value: '${fat.toInt()}g',
+                      value: '${fat.round()}g',
                       color: colors.fat),
                 ],
               ),
