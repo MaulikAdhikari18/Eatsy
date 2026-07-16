@@ -514,7 +514,7 @@ class _NutritionLabelCard extends StatelessWidget {
                               textBaseline: TextBaseline.alphabetic,
                               children: [
                                 Text(
-                                  '${summary.consumed.toInt()}',
+                                  '${summary.consumed.round()}',
                                   style: AppFonts.mono(
                                     fontSize: 32,
                                     fontWeight: FontWeight.w600,
@@ -561,9 +561,9 @@ class _NutritionLabelCard extends StatelessWidget {
           ),
           child: Row(
             children: [
-              _MacroStat(label: 'PROTEIN', value: '${summary.protein.toInt()}g', color: colors.protein),
-              _MacroStat(label: 'CARBS', value: '${summary.carbs.toInt()}g', color: colors.carbs),
-              _MacroStat(label: 'FAT', value: '${summary.fat.toInt()}g', color: colors.fat),
+              _MacroStat(label: 'PROTEIN', value: '${summary.protein.round()}g', color: colors.protein),
+              _MacroStat(label: 'CARBS', value: '${summary.carbs.round()}g', color: colors.carbs),
+              _MacroStat(label: 'FAT', value: '${summary.fat.round()}g', color: colors.fat),
             ],
           ),
         ),
@@ -1011,7 +1011,7 @@ class _ReceiptCard extends StatelessWidget {
                     children: [
                       DottedLeaderRow(
                         label: m['food_name']?.toString() ?? '',
-                        value: '${((m['calories'] ?? 0) as num).toInt()}',
+                        value: '${((m['calories'] ?? 0) as num).round()}',
                         valueColor: colors.mealTypeColor(m['meal_type']?.toString() ?? ''),
                       ),
                       // Same rule as Food Log: rows logged before this
@@ -1033,7 +1033,7 @@ class _ReceiptCard extends StatelessWidget {
                 padding: const EdgeInsets.only(bottom: 10),
                 child: DottedLeaderRow(
                   label: 'Subtotal',
-                  value: '${total.toInt()} kcal',
+                  value: '${total.round()} kcal',
                   labelFontWeight: FontWeight.w700,
                   valueFontSize: 14,
                 ),
@@ -1247,7 +1247,7 @@ class _WeeklyTrendsCardState extends ConsumerState<_WeeklyTrendsCard> {
                           color: colors.textPrimary),
                     ),
                     Text(
-                      '${selected.calories.toInt()} kcal',
+                      '${selected.calories.round()} kcal',
                       style: AppFonts.mono(
                           fontSize: 15,
                           fontWeight: FontWeight.w600,
@@ -1260,15 +1260,15 @@ class _WeeklyTrendsCardState extends ConsumerState<_WeeklyTrendsCard> {
                   children: [
                     _TrendMacro(
                         label: 'PROTEIN',
-                        value: '${selected.protein.toInt()}g',
+                        value: '${selected.protein.round()}g',
                         color: colors.protein),
                     _TrendMacro(
                         label: 'CARBS',
-                        value: '${selected.carbs.toInt()}g',
+                        value: '${selected.carbs.round()}g',
                         color: colors.carbs),
                     _TrendMacro(
                         label: 'FAT',
-                        value: '${selected.fat.toInt()}g',
+                        value: '${selected.fat.round()}g',
                         color: colors.fat),
                     const Spacer(),
                     Text(
@@ -1293,7 +1293,7 @@ class _WeeklyTrendsCardState extends ConsumerState<_WeeklyTrendsCard> {
                             fontSize: 9, color: colors.textMuted, letterSpacing: 0.5)),
                     const SizedBox(height: 2),
                     Text(
-                      '${widget.summary.avgCaloriesPerDay.toInt()} kcal',
+                      '${widget.summary.avgCaloriesPerDay.round()} kcal',
                       style: AppFonts.mono(
                           fontSize: 16,
                           fontWeight: FontWeight.w600,
