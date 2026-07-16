@@ -1,21 +1,36 @@
 import 'package:flutter/material.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/theme/app_colors.dart';
+import '../../core/utils/unit_converter.dart';
 import '../../core/utils/serving_format.dart';
+import 'unit_dropdown.dart';
 
-/// Serving size (free text, purely a label) + quantity (the actual
-/// multiplier) picker shown between "a food was found" and "add it to
-/// the log". `baseFood` is treated as the per-1-unit values — whatever
-/// Open Food Facts or the local fallback DB returned, unscaled.
+/// Quantity + Measure picker shown before a food gets logged.
 ///
-/// Deliberately NOT trying to parse the serving-size text to drive the
-/// math: neither Open Food Facts nor the local DB reliably expose
-/// multiple structured serving options the way FatSecret's old
-/// `servings.serving` array did, so quantity is the one real control —
-/// serving size just documents what "1×" means for this food.
+/// This replaced an earlier version where "serving size" was just a
+/// free-text label with no effect on the math — quantity was a plain
+/// multiplier on whatever the food's base values represented. That
+/// broke down as soon as someone wanted to log "50 tablespoons" of
+/// something whose base data was "per 100g": there's no way to turn
+/// tablespoons into grams without knowing how many grams the base
+/// record actually represents.
+///
+/// So `baseFood['base_grams']` (see food_data_service.dart) now drives
+/// real conversion: total grams = quantity × gramsPerUnit(measure), and
+/// nutrition scales from a per-gram rate computed off that. When a
+/// food's base_grams is unknown (Open Food Facts didn't have a
+/// parseable serving weight), Measure conversion isn't mathematically
+/// possible — the picker degrades to the old plain-multiplier behavior
+/// rather than showing a number it can't actually back up.
+///
+/// Quantity formatting (`formatQuantity`) and the "×1.5 · cup" subtitle
+/// shown later on logged items (`servingSubtitle`) both come from
+/// serving_format.dart — one shared copy instead of three duplicated
+/// versions across this file, food_log_screen.dart, and
+/// dashboard_screen.dart.
 class ServingQuantityPicker extends StatefulWidget {
   final Map<String, dynamic> baseFood;
-  final void Function(Map<String, dynamic> scaledFood, String servingSize,
+  final void Function(Map<String, dynamic> scaledFood, String measureLabel,
       double quantity) onChanged;
 
   const ServingQuantityPicker({
@@ -33,40 +48,51 @@ class ServingQuantityPickerState extends State<ServingQuantityPicker> {
   static const _maxQty = 10.0;
   static const _step = 0.5;
 
-  late final TextEditingController _servingController;
+  MeasureUnit _measure = MeasureUnit.serving;
   double _quantity = 1.0;
+
+  double? get _baseGrams {
+    final raw = widget.baseFood['base_grams'];
+    return raw == null ? null : (raw as num).toDouble();
+  }
+
+  bool get _hasKnownWeight => _baseGrams != null;
+
+  /// The actual scale factor applied to the food's base nutrition
+  /// values. With a known base weight this is a real
+  /// grams-in/grams-out ratio; without one, it degrades to exactly the
+  /// old "quantity is a plain multiplier" behavior (the only thing
+  /// still honest without knowing what a gram of this food even means).
+  double get _scaleFactor {
+    if (!_hasKnownWeight) return _quantity;
+    final perUnit =
+    UnitConverter.gramsPerMeasureUnit(_measure, baseGrams: _baseGrams);
+    if (perUnit == null) return _quantity;
+    final totalGrams = perUnit * _quantity;
+    return totalGrams / _baseGrams!;
+  }
+
+  /// Total grams for the current quantity+measure, for the small
+  /// "≈ 360g" readout — null (hidden) when base weight is unknown.
+  double? get _totalGrams {
+    if (!_hasKnownWeight) return null;
+    final perUnit =
+    UnitConverter.gramsPerMeasureUnit(_measure, baseGrams: _baseGrams);
+    if (perUnit == null) return null;
+    return perUnit * _quantity;
+  }
+
+  /// Just the unit name ("cup", "g", "serving") with no quantity baked
+  /// in — servingSubtitle()'s "×1.5 · cup" format already supplies the
+  /// quantity separately, so embedding it here too would show
+  /// "×1.5 · 1.5 cup".
+  String get _measureLabel =>
+      measureUnitOptions.firstWhere((o) => o.value == _measure).abbrev;
 
   @override
   void initState() {
     super.initState();
-    _servingController = TextEditingController(text: _defaultServingLabel());
-    // Fire once on mount so the caller has scaled values immediately,
-    // not just after the first edit.
     WidgetsBinding.instance.addPostFrameCallback((_) => _notify());
-  }
-
-  /// Best-effort starting point pulled from the food name's trailing
-  /// parenthetical — e.g. "White Rice (1 cup)" -> "1 cup",
-  /// "Paneer Butter Masala (per 100g)" -> "100g". Falls back to
-  /// "1 serving" when nothing usable is found. The field stays fully
-  /// editable either way.
-  String _defaultServingLabel() {
-    final name = widget.baseFood['food_name']?.toString() ?? '';
-    final match = RegExp(r'\(([^)]+)\)\s*$').firstMatch(name);
-    if (match != null) {
-      var label = match.group(1)!.trim();
-      if (label.toLowerCase().startsWith('per ')) {
-        label = label.substring(4).trim();
-      }
-      if (label.isNotEmpty) return label;
-    }
-    return '1 serving';
-  }
-
-  @override
-  void dispose() {
-    _servingController.dispose();
-    super.dispose();
   }
 
   void _setQuantity(double value) {
@@ -74,21 +100,25 @@ class ServingQuantityPickerState extends State<ServingQuantityPicker> {
     _notify();
   }
 
+  void _setMeasure(MeasureUnit measure) {
+    setState(() => _measure = measure);
+    _notify();
+  }
+
   void _notify() {
     final base = widget.baseFood;
     double v(String key) => ((base[key] ?? 0) as num).toDouble();
+    final factor = _scaleFactor;
 
     widget.onChanged(
       {
         'food_name': base['food_name'],
-        'calories': v('calories') * _quantity,
-        'protein': v('protein') * _quantity,
-        'carbs': v('carbs') * _quantity,
-        'fat': v('fat') * _quantity,
+        'calories': v('calories') * factor,
+        'protein': v('protein') * factor,
+        'carbs': v('carbs') * factor,
+        'fat': v('fat') * factor,
       },
-      _servingController.text.trim().isEmpty
-          ? '1 serving'
-          : _servingController.text.trim(),
+      _measureLabel,
       _quantity,
     );
   }
@@ -98,25 +128,47 @@ class ServingQuantityPickerState extends State<ServingQuantityPicker> {
     final colors = context.appColors;
     final base = widget.baseFood;
     double v(String key) => ((base[key] ?? 0) as num).toDouble();
-    final cal = v('calories') * _quantity;
-    final protein = v('protein') * _quantity;
-    final carbs = v('carbs') * _quantity;
-    final fat = v('fat') * _quantity;
+    final factor = _scaleFactor;
+    final cal = v('calories') * factor;
+    final protein = v('protein') * factor;
+    final carbs = v('carbs') * factor;
+    final fat = v('fat') * factor;
+    final totalGrams = _totalGrams;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          'SERVING SIZE',
-          style: AppFonts.mono(
-              fontSize: 10, color: colors.textSecondary, letterSpacing: 1),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(
+              'MEASURE',
+              style: AppFonts.mono(
+                  fontSize: 10, color: colors.textSecondary, letterSpacing: 1),
+            ),
+            if (_hasKnownWeight)
+              UnitDropdown<MeasureUnit>(
+                value: _measure,
+                options: measureUnitOptions,
+                color: colors.textPrimary,
+                onChanged: _setMeasure,
+              )
+            else
+              Text(
+                'WEIGHT UNKNOWN',
+                style: AppFonts.mono(
+                    fontSize: 9, color: colors.textMuted, letterSpacing: 0.5),
+              ),
+          ],
         ),
-        const SizedBox(height: 6),
-        TextField(
-          controller: _servingController,
-          onChanged: (_) => _notify(),
-          decoration: const InputDecoration(hintText: 'e.g. 1 cup, 100g'),
-        ),
+        if (!_hasKnownWeight) ...[
+          const SizedBox(height: 4),
+          Text(
+            "This food's exact weight isn't known, so quantity scales "
+                "the listed values directly instead of converting between units.",
+            style: TextStyle(fontSize: 11, color: colors.textMuted, height: 1.3),
+          ),
+        ],
         const SizedBox(height: 16),
         Text(
           'QUANTITY',
@@ -132,12 +184,6 @@ class ServingQuantityPickerState extends State<ServingQuantityPicker> {
             ),
             Expanded(
               child: Text(
-                // FIX: was a local `.replaceFirst(RegExp(r'0$'), '')`,
-                // which only stripped one trailing zero — "1.0" stayed
-                // "1.0" instead of becoming "1". Now uses the shared
-                // formatQuantity() from serving_format.dart (also used
-                // by the "×2 · 1 cup" subtitle on Food Log/Dashboard),
-                // so there's exactly one place this logic lives.
                 formatQuantity(_quantity),
                 textAlign: TextAlign.center,
                 style: AppFonts.mono(
@@ -172,21 +218,33 @@ class ServingQuantityPickerState extends State<ServingQuantityPicker> {
                           fontSize: 11,
                           color: colors.textMuted,
                           letterSpacing: 0.5)),
-                  // FIX: was cal.toInt(), which truncates instead of
-                  // rounding — 149.9 kcal displayed as "149 kcal"
-                  // instead of "150 kcal". .round() is correct here.
-                  Text('${cal.round()} kcal',
-                      style: AppFonts.mono(
-                          fontSize: 20,
-                          fontWeight: FontWeight.w700,
-                          color: colors.textPrimary)),
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.baseline,
+                    textBaseline: TextBaseline.alphabetic,
+                    children: [
+                      // .round(), not .toInt() — matches the app-wide
+                      // rounding convention (food_log_screen.dart,
+                      // dashboard_screen.dart) so this preview always
+                      // matches what shows up after logging, instead of
+                      // e.g. "150 kcal" here vs "149 kcal" afterward.
+                      Text('${cal.round()} kcal',
+                          style: AppFonts.mono(
+                              fontSize: 20,
+                              fontWeight: FontWeight.w700,
+                              color: colors.textPrimary)),
+                      if (totalGrams != null) ...[
+                        const SizedBox(width: 6),
+                        Text('≈ ${totalGrams.round()}g',
+                            style: AppFonts.mono(
+                                fontSize: 11, color: colors.textMuted)),
+                      ],
+                    ],
+                  ),
                 ],
               ),
               const SizedBox(height: 10),
               Row(
                 children: [
-                  // FIX: same truncation-vs-rounding issue as calories
-                  // above, applied to all three macros for consistency.
                   _MiniMacroText(
                       label: 'PROTEIN',
                       value: '${protein.round()}g',

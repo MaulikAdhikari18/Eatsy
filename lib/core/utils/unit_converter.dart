@@ -1,3 +1,5 @@
+import '../settings/unit_preferences_provider.dart' show UnitOption;
+
 /// Conversion helpers for every optional display unit in the app.
 ///
 /// Deliberately narrow: all persisted data — `goals.weight_goal`,
@@ -8,6 +10,14 @@
 /// Supabase. This keeps the data model unambiguous even if the user
 /// flips units back and forth, or if two people on different unit
 /// preferences share the same backend data.
+///
+/// Food serving measures (below) are a different kind of "unit" from
+/// weight/water/height: they're chosen per food item at logging time,
+/// not a persisted app-wide preference, so — unlike WeightUnit/
+/// WaterUnit/HeightUnit — there's no *UnitController/*UnitProvider for
+/// MeasureUnit in unit_preferences_provider.dart. It reuses that file's
+/// UnitOption<T> shape for the dropdown, but the enum and its
+/// conversion table live here instead, next to the math that resolves it.
 class UnitConverter {
   static const double kgPerLb = 0.45359237;
   static const double lbPerStone = 14;
@@ -55,4 +65,50 @@ class UnitConverter {
     final inches = (totalInches - feet * 12).round();
     return '$feet\'$inches"';
   }
+
+  // --- Food serving measures ---
+  // Generic per-unit gram equivalents, same simplification most
+  // consumer nutrition apps make — a cup of flour and a cup of milk
+  // weigh very different amounts in reality, but a food-specific
+  // density table is well beyond what this app's data sources
+  // (Open Food Facts, local fallback DB) can actually support.
+  static const double gPerCup = 240;
+  static const double gPerTablespoon = 15;
+  static const double gPerTeaspoon = 5;
+  static const double gPerOunceMass = 28.3495;
+
+  /// Grams represented by one unit of `measure`. `MeasureUnit.serving`
+  /// is deliberately NOT in this fixed table — "a serving" isn't a
+  /// constant weight, it means "whatever this specific food's own
+  /// base_grams is", so the caller must supply it. Returns null only
+  /// when `measure == serving` and `baseGrams` wasn't supplied (i.e.
+  /// the food's serving weight is genuinely unknown) — every other
+  /// case always resolves to a real number.
+  static double? gramsPerMeasureUnit(MeasureUnit measure, {double? baseGrams}) {
+    switch (measure) {
+      case MeasureUnit.serving:
+        return baseGrams;
+      case MeasureUnit.grams:
+        return 1;
+      case MeasureUnit.cup:
+        return gPerCup;
+      case MeasureUnit.tablespoon:
+        return gPerTablespoon;
+      case MeasureUnit.teaspoon:
+        return gPerTeaspoon;
+      case MeasureUnit.ounce:
+        return gPerOunceMass;
+    }
+  }
 }
+
+enum MeasureUnit { serving, grams, cup, tablespoon, teaspoon, ounce }
+
+const measureUnitOptions = <UnitOption<MeasureUnit>>[
+  UnitOption(value: MeasureUnit.serving, abbrev: 'serving', fullLabel: 'Serving (as listed)'),
+  UnitOption(value: MeasureUnit.grams, abbrev: 'g', fullLabel: 'Grams (g)'),
+  UnitOption(value: MeasureUnit.cup, abbrev: 'cup', fullLabel: 'Cup (~240g)'),
+  UnitOption(value: MeasureUnit.tablespoon, abbrev: 'tbsp', fullLabel: 'Tablespoon (~15g)'),
+  UnitOption(value: MeasureUnit.teaspoon, abbrev: 'tsp', fullLabel: 'Teaspoon (~5g)'),
+  UnitOption(value: MeasureUnit.ounce, abbrev: 'oz', fullLabel: 'Ounce (oz)'),
+];
