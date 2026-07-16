@@ -422,7 +422,7 @@ class _FoodLogScreenState extends ConsumerState<FoodLogScreen> {
                             color: colors.textPrimary,
                             fontWeight: FontWeight.w500)),
                     subtitle: Text(
-                      '${food['calories'].toInt()} kcal · P: ${food['protein']}g · C: ${food['carbs']}g · F: ${food['fat']}g',
+                      '${food['calories'].round()} kcal · P: ${food['protein']}g · C: ${food['carbs']}g · F: ${food['fat']}g',
                       style: TextStyle(fontSize: 12, color: colors.textSecondary),
                     ),
                     trailing: IconButton(
@@ -555,7 +555,7 @@ class _MealGroupCard extends StatelessWidget {
                   children: [
                     DottedLeaderRow(
                       label: item['food_name']?.toString() ?? '',
-                      value: '${((item['calories'] ?? 0) as num).toInt()}',
+                      value: '${((item['calories'] ?? 0) as num).round()}',
                     ),
                     if (subtitle != null)
                       Padding(
@@ -573,7 +573,7 @@ class _MealGroupCard extends StatelessWidget {
           Divider(height: 18, color: colors.divider),
           DottedLeaderRow(
             label: 'Subtotal',
-            value: '${subtotal.toInt()} kcal',
+            value: '${subtotal.round()} kcal',
             labelFontWeight: FontWeight.w700,
             valueFontSize: 14,
           ),
