@@ -44,9 +44,21 @@ class ServingQuantityPicker extends StatefulWidget {
 }
 
 class ServingQuantityPickerState extends State<ServingQuantityPicker> {
-  static const _minQty = 0.25;
-  static const _maxQty = 10.0;
-  static const _step = 0.5;
+  /// Practical quantity range differs a lot by measure — a single fixed
+  /// 0.25–10 (step 0.5) range works fine for servings/cups, but makes
+  /// Grams nearly unusable: there's no text field, only +/- steppers,
+  /// so reaching something like "150g" would take ~300 taps. Each
+  /// measure gets its own sensible range and a default to switch to.
+  static const _ranges = <MeasureUnit, _MeasureRange>{
+    MeasureUnit.serving: _MeasureRange(min: 0.25, max: 10, step: 0.5, defaultQty: 1),
+    MeasureUnit.grams: _MeasureRange(min: 1, max: 1000, step: 10, defaultQty: 100),
+    MeasureUnit.cup: _MeasureRange(min: 0.25, max: 8, step: 0.25, defaultQty: 1),
+    MeasureUnit.tablespoon: _MeasureRange(min: 0.5, max: 20, step: 0.5, defaultQty: 1),
+    MeasureUnit.teaspoon: _MeasureRange(min: 0.5, max: 30, step: 0.5, defaultQty: 1),
+    MeasureUnit.ounce: _MeasureRange(min: 0.5, max: 32, step: 0.5, defaultQty: 4),
+  };
+
+  _MeasureRange get _range => _ranges[_measure]!;
 
   MeasureUnit _measure = MeasureUnit.serving;
   double _quantity = 1.0;
@@ -96,12 +108,20 @@ class ServingQuantityPickerState extends State<ServingQuantityPicker> {
   }
 
   void _setQuantity(double value) {
-    setState(() => _quantity = value.clamp(_minQty, _maxQty));
+    final r = _range;
+    setState(() => _quantity = value.clamp(r.min, r.max));
     _notify();
   }
 
   void _setMeasure(MeasureUnit measure) {
-    setState(() => _measure = measure);
+    setState(() {
+      _measure = measure;
+      // Reset to that measure's own default rather than carrying over
+      // a number that means something totally different now — e.g.
+      // switching from "2 servings" to Grams shouldn't silently become
+      // "2 grams".
+      _quantity = _ranges[measure]!.defaultQty;
+    });
     _notify();
   }
 
@@ -180,7 +200,7 @@ class ServingQuantityPickerState extends State<ServingQuantityPicker> {
           children: [
             _StepButton(
               icon: Icons.remove,
-              onTap: () => _setQuantity(_quantity - _step),
+              onTap: () => _setQuantity(_quantity - _range.step),
             ),
             Expanded(
               child: Text(
@@ -195,7 +215,7 @@ class ServingQuantityPickerState extends State<ServingQuantityPicker> {
             _StepButton(
               icon: Icons.add,
               filled: true,
-              onTap: () => _setQuantity(_quantity + _step),
+              onTap: () => _setQuantity(_quantity + _range.step),
             ),
           ],
         ),
@@ -316,4 +336,22 @@ class _MiniMacroText extends StatelessWidget {
       ],
     );
   }
+}
+
+/// Per-measure quantity bounds: a serving/cup step of 0.5 makes sense,
+/// but Grams needs a much wider range and coarser step to be usable
+/// with +/- steppers alone (no text field), and Ounce's default of 4
+/// (a quarter-pound-ish amount) is a more sensible starting point than
+/// 1oz for most foods people actually search for.
+class _MeasureRange {
+  final double min;
+  final double max;
+  final double step;
+  final double defaultQty;
+  const _MeasureRange({
+    required this.min,
+    required this.max,
+    required this.step,
+    required this.defaultQty,
+  });
 }
