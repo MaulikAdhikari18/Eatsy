@@ -62,6 +62,8 @@ class ServingQuantityPickerState extends State<ServingQuantityPicker> {
 
   MeasureUnit _measure = MeasureUnit.serving;
   double _quantity = 1.0;
+  late final TextEditingController _quantityController;
+  final FocusNode _quantityFocusNode = FocusNode();
 
   double? get _baseGrams {
     final raw = widget.baseFood['base_grams'];
@@ -104,12 +106,48 @@ class ServingQuantityPickerState extends State<ServingQuantityPicker> {
   @override
   void initState() {
     super.initState();
+    _quantityController = TextEditingController(text: formatQuantity(_quantity));
+    _quantityFocusNode.addListener(() {
+      // Clamp + reformat once editing is actually done (focus lost),
+      // not on every keystroke — clamping "0" straight to a measure's
+      // minimum mid-type would make it impossible to ever type
+      // something like "0.5" for a measure whose min is below 1.
+      if (!_quantityFocusNode.hasFocus) _commitTypedQuantity();
+    });
     WidgetsBinding.instance.addPostFrameCallback((_) => _notify());
+  }
+
+  @override
+  void dispose() {
+    _quantityController.dispose();
+    _quantityFocusNode.dispose();
+    super.dispose();
+  }
+
+  /// Live-updates `_quantity` as the person types, without clamping or
+  /// reformatting mid-edit — same reasoning as the focus-loss comment
+  /// above. Non-numeric/incomplete input (e.g. "", "1.") is simply
+  /// ignored rather than rejected, so it doesn't fight normal typing.
+  void _onQuantityTextChanged(String value) {
+    final parsed = double.tryParse(value);
+    if (parsed == null) return;
+    setState(() => _quantity = parsed);
+    _notify();
+  }
+
+  void _commitTypedQuantity() {
+    final r = _range;
+    final parsed = double.tryParse(_quantityController.text);
+    final resolved = (parsed ?? _quantity).clamp(r.min, r.max);
+    setState(() => _quantity = resolved);
+    _quantityController.text = formatQuantity(_quantity);
+    _notify();
   }
 
   void _setQuantity(double value) {
     final r = _range;
     setState(() => _quantity = value.clamp(r.min, r.max));
+    _quantityController.text = formatQuantity(_quantity);
     _notify();
   }
 
@@ -122,6 +160,7 @@ class ServingQuantityPickerState extends State<ServingQuantityPicker> {
       // "2 grams".
       _quantity = _ranges[measure]!.defaultQty;
     });
+    _quantityController.text = formatQuantity(_quantity);
     _notify();
   }
 
@@ -203,13 +242,24 @@ class ServingQuantityPickerState extends State<ServingQuantityPicker> {
               onTap: () => _setQuantity(_quantity - _range.step),
             ),
             Expanded(
-              child: Text(
-                formatQuantity(_quantity),
+              child: TextField(
+                controller: _quantityController,
+                focusNode: _quantityFocusNode,
+                keyboardType: const TextInputType.numberWithOptions(decimal: true),
                 textAlign: TextAlign.center,
+                onChanged: _onQuantityTextChanged,
+                onSubmitted: (_) => _commitTypedQuantity(),
+                onTapOutside: (_) => FocusManager.instance.primaryFocus?.unfocus(),
                 style: AppFonts.mono(
                     fontSize: 18,
                     fontWeight: FontWeight.w600,
                     color: colors.textPrimary),
+                decoration: const InputDecoration(
+                  isDense: true,
+                  filled: false,
+                  border: InputBorder.none,
+                  contentPadding: EdgeInsets.symmetric(vertical: 8),
+                ),
               ),
             ),
             _StepButton(
