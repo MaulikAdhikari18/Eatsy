@@ -33,8 +33,8 @@ String? servingSubtitle(Map<String, dynamic> item) {
 
   if (!hasServingSize && !hasMeaningfulQuantity) return null;
 
-  final qtyPart = hasMeaningfulQuantity ? '×${formatQuantity(quantity!)}' : '';
-  final sizePart = hasServingSize ? servingSizeRaw! : '';
+  final qtyPart = hasMeaningfulQuantity ? '×${formatQuantity(quantity)}' : '';
+  final sizePart = hasServingSize ? servingSizeRaw : '';
 
   if (qtyPart.isNotEmpty && sizePart.isNotEmpty) return '$qtyPart · $sizePart';
   return qtyPart.isNotEmpty ? qtyPart : sizePart;

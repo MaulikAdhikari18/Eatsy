@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../core/utils/day_boundary.dart';
@@ -64,10 +65,8 @@ FutureProvider<DashboardSummary>((ref) async {
         .order('logged_at', ascending: false);
 
     final List<Map<String, dynamic>> logs = [];
-    if (logsResponse != null) {
-      for (final item in logsResponse) {
-        logs.add(Map<String, dynamic>.from(item));
-      }
+    for (final item in logsResponse) {
+      logs.add(Map<String, dynamic>.from(item));
     }
 
     double totalCalories = 0;
@@ -102,7 +101,7 @@ FutureProvider<DashboardSummary>((ref) async {
       todaysMeals: logs,
     );
   } catch (e) {
-    print('Dashboard error: $e');
+    debugPrint('Dashboard error: $e');
     return DashboardSummary(
       consumed: 0,
       goal: 2000,
