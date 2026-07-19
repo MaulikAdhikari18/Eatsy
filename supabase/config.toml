@@ -19,3 +19,13 @@ enabled = true
 verify_jwt = true
 import_map = "./functions/groq-proxy/deno.json"
 entrypoint = "./functions/groq-proxy/index.ts"
+
+[functions.delete-account]
+enabled = true
+# true — same reasoning as groq-proxy. This function also holds the
+# service-role key, which can bypass RLS entirely and delete a login
+# outright, so it's the last function that should ever be left open to
+# unauthenticated requests.
+verify_jwt = true
+import_map = "./functions/delete-account/deno.json"
+entrypoint = "./functions/delete-account/index.ts"
