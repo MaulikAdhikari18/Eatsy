@@ -59,6 +59,13 @@ dependencies:
   # HTTP client
   dio: ^5.7.0
 
+  # Opens external links (Privacy Policy / Terms of Service) in the
+  # system browser. This was already present transitively (pulled in
+  # by google_sign_in / supabase_flutter), but declaring it directly
+  # means it won't silently disappear if one of those packages drops
+  # it in a future version.
+  url_launcher: ^6.3.2
+
   #Google Fonts
   google_fonts: ^6.2.1
 
@@ -138,4 +145,3 @@ flutter_native_splash:
   image: assets/icon/icon.png
   android: true
   ios: true
-

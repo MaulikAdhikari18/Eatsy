@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import '../controllers/auth_controller.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/utils/legal_links.dart';
 
 class SignupScreen extends ConsumerStatefulWidget {
   const SignupScreen({super.key});
@@ -20,6 +21,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
   bool _obscurePassword = true;
   bool _obscureConfirm = true;
   bool _isLoading = false;
+  bool _agreedToTerms = false;
 
   @override
   void dispose() {
@@ -51,6 +53,14 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
     if (_passwordController.text.length < 6) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Password must be at least 6 characters')),
+      );
+      return;
+    }
+
+    if (!_agreedToTerms) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+            content: Text('Please agree to the Terms of Service and Privacy Policy')),
       );
       return;
     }
@@ -212,7 +222,79 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                 ),
               ),
 
-              const SizedBox(height: 32),
+              const SizedBox(height: 24),
+
+              // Terms/Privacy consent — required (see _signUp's
+              // _agreedToTerms check) rather than just informational,
+              // given the app collects health-adjacent data (weight,
+              // medical conditions under Diet Preferences). Built with
+              // Checkbox + Wrap of separate Text/GestureDetector spans
+              // instead of RichText + TapGestureRecognizer, so there's
+              // no recognizer lifecycle to manage/dispose.
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  SizedBox(
+                    width: 24,
+                    height: 24,
+                    child: Checkbox(
+                      value: _agreedToTerms,
+                      onChanged: (value) =>
+                          setState(() => _agreedToTerms = value ?? false),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Padding(
+                      padding: const EdgeInsets.only(top: 2),
+                      child: Wrap(
+                        crossAxisAlignment: WrapCrossAlignment.center,
+                        children: [
+                          Text('I agree to the ',
+                              style: TextStyle(
+                                  color: colors.textSecondary, fontSize: 13)),
+                          GestureDetector(
+                            onTap: () =>
+                                LegalLinks.openTermsOfService(context),
+                            child: Text(
+                              'Terms of Service',
+                              style: TextStyle(
+                                color: colors.textPrimary,
+                                fontSize: 13,
+                                fontWeight: FontWeight.w700,
+                                decoration: TextDecoration.underline,
+                                decorationColor: colors.accent,
+                              ),
+                            ),
+                          ),
+                          Text(' and ',
+                              style: TextStyle(
+                                  color: colors.textSecondary, fontSize: 13)),
+                          GestureDetector(
+                            onTap: () =>
+                                LegalLinks.openPrivacyPolicy(context),
+                            child: Text(
+                              'Privacy Policy',
+                              style: TextStyle(
+                                color: colors.textPrimary,
+                                fontSize: 13,
+                                fontWeight: FontWeight.w700,
+                                decoration: TextDecoration.underline,
+                                decorationColor: colors.accent,
+                              ),
+                            ),
+                          ),
+                          Text('.',
+                              style: TextStyle(
+                                  color: colors.textSecondary, fontSize: 13)),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+
+              const SizedBox(height: 24),
 
               // Sign Up button — inherits accent fill / accentOnColor text
               // from ElevatedButtonThemeData, same as the Login screen.

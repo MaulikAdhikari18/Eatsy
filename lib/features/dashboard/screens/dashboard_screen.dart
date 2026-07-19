@@ -18,6 +18,7 @@ import '../../../core/theme/theme_provider.dart';
 import '../../../core/settings/unit_preferences_provider.dart';
 import '../../../core/utils/unit_converter.dart';
 import '../../../core/utils/serving_format.dart';
+import '../../../core/utils/legal_links.dart';
 import '../../../shared/widgets/dotted_leader_row.dart';
 import '../../../shared/widgets/receipt_decorations.dart';
 import '../../../shared/widgets/unit_dropdown.dart';
@@ -207,6 +208,22 @@ class _HomeTab extends ConsumerWidget {
                   context,
                   MaterialPageRoute(builder: (_) => const GoalsScreen()),
                 );
+              },
+            ),
+            ListTile(
+              leading: Icon(Icons.privacy_tip_outlined, color: colors.textSecondary),
+              title: const Text('Privacy Policy'),
+              onTap: () {
+                Navigator.pop(sheetContext);
+                LegalLinks.openPrivacyPolicy(context);
+              },
+            ),
+            ListTile(
+              leading: Icon(Icons.description_outlined, color: colors.textSecondary),
+              title: const Text('Terms of Service'),
+              onTap: () {
+                Navigator.pop(sheetContext);
+                LegalLinks.openTermsOfService(context);
               },
             ),
             ListTile(
