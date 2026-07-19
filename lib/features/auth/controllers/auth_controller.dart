@@ -1,5 +1,7 @@
+import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../../core/utils/day_boundary.dart';
 
 final authControllerProvider =
 StateNotifierProvider<AuthController, AsyncValue<void>>((ref) {
@@ -10,6 +12,13 @@ class AuthController extends StateNotifier<AsyncValue<void>> {
   AuthController() : super(const AsyncValue.data(null));
 
   final _supabase = Supabase.instance.client;
+
+  // Same proxy pattern as the Groq calls in meal_plan_screen.dart —
+  // this one runs the account-deletion Edge Function, which is the
+  // only place the service-role key needed to delete an auth user
+  // ever exists (see supabase/functions/delete-account/index.ts).
+  static const String _deleteAccountUrl =
+      'https://ghobobiocpjfiwcrrfbr.supabase.co/functions/v1/delete-account';
 
   Future<void> signInWithEmail(String email, String password) async {
     await _supabase.auth.signInWithPassword(
@@ -30,7 +39,7 @@ class AuthController extends StateNotifier<AsyncValue<void>> {
       await _supabase.from('profiles').insert({
         'id': response.user!.id,
         'full_name': fullName,
-        'created_at': DateTime.now().toIso8601String(),
+        'created_at': DayBoundary.nowUtcIso(),
       });
     }
   }
@@ -73,6 +82,56 @@ class AuthController extends StateNotifier<AsyncValue<void>> {
     await _supabase.auth.updateUser(
       UserAttributes(password: newPassword),
     );
+  }
+
+  /// Permanently deletes the signed-in user's account: every row they
+  /// own across every app table, plus the login itself. Irreversible —
+  /// DeleteAccountScreen is responsible for getting explicit,
+  /// unambiguous confirmation before this is ever called.
+  ///
+  /// This can't be done with a plain `_supabase.from(...).delete()` /
+  /// `_supabase.auth` call the way everything else in this file is,
+  /// because removing the actual login (`auth.admin.deleteUser`) is an
+  /// admin-only operation that requires the service-role key — a key
+  /// that must never exist inside the compiled app. So this calls the
+  /// delete-account Edge Function instead, which holds that key
+  /// server-side and does the deletion on the app's behalf, the same
+  /// way meal_plan_screen.dart calls the groq-proxy function rather
+  /// than talking to Groq directly.
+  ///
+  /// On success, signs the (now-deleted) session out locally so the
+  /// app's own auth state clears immediately rather than waiting on
+  /// the next API call to fail with a stale/invalid session.
+  Future<void> deleteAccount() async {
+    final session = _supabase.auth.currentSession;
+    if (session == null) {
+      throw Exception('Not signed in — please log in again.');
+    }
+
+    final dio = Dio();
+    final response = await dio.post(
+      _deleteAccountUrl,
+      options: Options(
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer ${session.accessToken}',
+        },
+        validateStatus: (status) => true,
+      ),
+    );
+
+    if (response.statusCode != 200) {
+      final message = response.data is Map
+          ? (response.data['error']?.toString() ?? 'Account deletion failed.')
+          : 'Account deletion failed.';
+      throw Exception(message);
+    }
+
+    // The auth user no longer exists server-side at this point — this
+    // just clears the local session so the app's UI reflects that
+    // immediately instead of surfacing a confusing error on whatever
+    // the next authenticated call happens to be.
+    await _supabase.auth.signOut();
   }
 
   Future<void> signOut() async {
