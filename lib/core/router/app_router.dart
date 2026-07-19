@@ -7,6 +7,7 @@ import '../../features/auth/screens/login_screen.dart';
 import '../../features/auth/screens/signup_screen.dart';
 import '../../features/auth/screens/forgot_password_screen.dart';
 import '../../features/auth/screens/reset_password_screen.dart';
+import '../../features/auth/screens/delete_account_screen.dart';
 import '../../features/auth/screens/onboarding_screen.dart';
 import '../../features/dashboard/screens/dashboard_screen.dart';
 import '../../features/preferences/screens/diet_preferences_screen.dart';
@@ -40,6 +41,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/reset-password',
         builder: (context, state) => const ResetPasswordScreen(),
+      ),
+      GoRoute(
+        path: '/delete-account',
+        builder: (context, state) => const DeleteAccountScreen(),
       ),
       GoRoute(
         path: '/onboarding',
