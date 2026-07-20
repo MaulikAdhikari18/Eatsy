@@ -5,6 +5,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../features/auth/screens/login_screen.dart';
 import '../../features/auth/screens/signup_screen.dart';
+import '../../features/auth/screens/forgot_password_screen.dart';
+import '../../features/auth/screens/reset_password_screen.dart';
 import '../../features/auth/screens/onboarding_screen.dart';
 import '../../features/dashboard/screens/dashboard_screen.dart';
 import '../../features/preferences/screens/diet_preferences_screen.dart';
@@ -32,6 +34,14 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         builder: (context, state) => const SignupScreen(),
       ),
       GoRoute(
+        path: '/forgot-password',
+        builder: (context, state) => const ForgotPasswordScreen(),
+      ),
+      GoRoute(
+        path: '/reset-password',
+        builder: (context, state) => const ResetPasswordScreen(),
+      ),
+      GoRoute(
         path: '/onboarding',
         builder: (context, state) => const OnboardingScreen(),
       ),
@@ -41,6 +51,21 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       ),
     ],
   );
+
+  // Supabase turns the emailed reset-password link into a
+  // `passwordRecovery` auth event once the app actually opens via that
+  // deep link (see auth_controller.dart's sendPasswordResetEmail for
+  // the redirectTo config this depends on). This listener is what gets
+  // the person from "tapped the link in their email" to
+  // ResetPasswordScreen — without it, the deep link could open the
+  // app (assuming the native platform config is done) but never
+  // actually navigate anywhere.
+  Supabase.instance.client.auth.onAuthStateChange.listen((data) {
+    if (data.event == AuthChangeEvent.passwordRecovery) {
+      router.go('/reset-password');
+    }
+  });
+
   return router;
 });
 
