@@ -183,7 +183,36 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       ),
                     ),
 
-                    const SizedBox(height: 28),
+                    const SizedBox(height: 12),
+
+                    // Forgot Password? — right-aligned, same underline
+                    // treatment as the "Sign Up" link at the bottom of
+                    // this screen, so it doesn't read as a full CTA
+                    // competing with Sign In right below it.
+                    Align(
+                      alignment: Alignment.centerRight,
+                      child: GestureDetector(
+                        onTap: () => context.push('/forgot-password'),
+                        child: Container(
+                          padding: const EdgeInsets.only(bottom: 1),
+                          decoration: BoxDecoration(
+                            border: Border(
+                              bottom: BorderSide(color: colors.accent, width: 2),
+                            ),
+                          ),
+                          child: Text(
+                            'Forgot Password?',
+                            style: TextStyle(
+                              color: colors.textSecondary,
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+
+                    const SizedBox(height: 20),
 
                     // Sign In button — picks up accent fill / accentOnColor
                     // text automatically from ElevatedButtonThemeData.
