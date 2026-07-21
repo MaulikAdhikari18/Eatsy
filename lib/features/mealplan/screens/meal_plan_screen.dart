@@ -12,6 +12,7 @@ import '../../../shared/widgets/dotted_leader_row.dart';
 import '../../../shared/widgets/receipt_decorations.dart';
 import '../../preferences/controllers/diet_preferences_controller.dart';
 import '../../preferences/models/diet_preferences.dart';
+import '../../../core/utils/day_boundary.dart';
 import '../cuisine_reference.dart';
 
 class MealPlanScreen extends ConsumerStatefulWidget {
@@ -119,7 +120,7 @@ class _MealPlanScreenState extends ConsumerState<MealPlanScreen> {
 
       await supabase.from('diet_plans').upsert({
         'user_id': userId,
-        'generated_at': now.toIso8601String(),
+        'generated_at': DayBoundary.nowUtcIso(),
         'week_start_date':
         '${weekStart.year}-${weekStart.month.toString().padLeft(2, '0')}-${weekStart.day.toString().padLeft(2, '0')}',
         'cuisine': prefs.cuisines.isEmpty ? 'Mixed' : prefs.cuisines.join(', '),
@@ -288,8 +289,7 @@ class _MealPlanScreenState extends ConsumerState<MealPlanScreen> {
         .eq('user_id', userId!)
         .maybeSingle();
 
-    final now = DateTime.now();
-    final weekAgo = now.subtract(const Duration(days: 7));
+    final weekAgo = DayBoundary.daysAgoLocal(7);
     final logs = await supabase
         .from('food_logs')
         .select()
@@ -605,7 +605,7 @@ Rules:
         'carbs': (meal['carbs'] as num).toDouble(),
         'fat': (meal['fat'] as num).toDouble(),
         'meal_type': mealType,
-        'logged_at': DateTime.now().toIso8601String(),
+        'logged_at': DayBoundary.nowUtcIso(),
       });
 
       if (mounted) {
