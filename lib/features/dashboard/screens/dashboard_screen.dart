@@ -220,6 +220,17 @@ class _HomeTab extends ConsumerWidget {
                 if (context.mounted) context.go('/');
               },
             ),
+            Divider(height: 24, color: colors.divider),
+            ListTile(
+              leading: const Icon(Icons.delete_forever_outlined, color: Colors.red),
+              title: const Text('Delete Account', style: TextStyle(color: Colors.red)),
+              subtitle: Text('Permanently erase your data',
+                  style: TextStyle(color: colors.textMuted, fontSize: 12)),
+              onTap: () {
+                Navigator.pop(sheetContext);
+                context.push('/delete-account');
+              },
+            ),
           ],
         ),
       ),
