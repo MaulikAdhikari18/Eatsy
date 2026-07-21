@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:dio/dio.dart';
 import 'dart:convert';
-import '../../../core/config/app_config.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
@@ -32,6 +31,35 @@ class _MealPlanScreenState extends ConsumerState<MealPlanScreen> {
   // "$day|$mealType", so only that one card shows a spinner instead of
   // blocking the whole screen for a single-meal regeneration.
   final Set<String> _swappingKeys = {};
+
+  // Groq is now called through this Supabase edge function instead of
+  // directly from the client — the Groq API key itself no longer lives
+  // in the app at all (it was previously embedded via
+  // AppConfig.groqApiKey, which shipped inside the compiled binary).
+  static const String _groqProxyUrl =
+      'https://ghobobiocpjfiwcrrfbr.supabase.co/functions/v1/groq-proxy';
+
+  /// Auth header for the Groq proxy — the current user's session
+  /// access token, NOT the Supabase anon key. groq-proxy explicitly
+  /// checks for a real authenticated session (see
+  /// supabase/functions/groq-proxy/index.ts); the anon key alone would
+  /// just get a 401 back, since it isn't a user session token even
+  /// though it's technically a validly-signed JWT. Throws when there's
+  /// no active session rather than sending a request we already know
+  /// will be rejected.
+  Options _groqAuthOptions() {
+    final session = Supabase.instance.client.auth.currentSession;
+    if (session == null) {
+      throw Exception('Not signed in — please log in again.');
+    }
+    return Options(
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ${session.accessToken}',
+      },
+      validateStatus: (status) => true,
+    );
+  }
 
   @override
   void initState() {
@@ -383,14 +411,8 @@ Rules:
 
       final dio = Dio();
       final response = await dio.post(
-        'https://api.groq.com/openai/v1/chat/completions',
-        options: Options(
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': 'Bearer ${AppConfig.groqApiKey}',
-          },
-          validateStatus: (status) => true,
-        ),
+        _groqProxyUrl,
+        options: _groqAuthOptions(),
         data: {
           'model': 'llama-3.3-70b-versatile',
           'max_tokens': 4000,
@@ -411,7 +433,7 @@ Rules:
         final cleanJson = content.replaceAll('```json', '').replaceAll('```', '').trim();
         plan = jsonDecode(cleanJson) as Map<String, dynamic>;
       } else {
-        debugPrint('❌ Groq error: ${response.data}');
+        debugPrint('❌ Groq proxy error: ${response.data}');
         plan = _getFallbackPlan(userData);
       }
 
@@ -458,14 +480,8 @@ Rules:
 
       final dio = Dio();
       final response = await dio.post(
-        'https://api.groq.com/openai/v1/chat/completions',
-        options: Options(
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': 'Bearer ${AppConfig.groqApiKey}',
-          },
-          validateStatus: (status) => true,
-        ),
+        _groqProxyUrl,
+        options: _groqAuthOptions(),
         data: {
           'model': 'llama-3.3-70b-versatile',
           'max_tokens': 800,
