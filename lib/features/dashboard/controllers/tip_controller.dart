@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../../core/utils/day_boundary.dart';
 import 'dashboard_controller.dart';
 import 'water_controller.dart';
 
@@ -45,8 +46,8 @@ final dailyTipProvider = FutureProvider<DailyTip>((ref) async {
   if (userId == null) return loggedOutTip;
 
   try {
-    final startOfDay = DateTime(now.year, now.month, now.day);
-    final endOfDay = startOfDay.add(const Duration(days: 1));
+    final startOfDay = DayBoundary.startOfLocalDay(now);
+    final endOfDay = DayBoundary.endOfLocalDay(now);
 
     final foodLogs = await supabase
         .from('food_logs')
