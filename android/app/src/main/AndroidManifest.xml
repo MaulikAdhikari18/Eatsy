@@ -17,12 +17,23 @@
                  while the Flutter UI initializes. After that, this theme continues
                  to determine the Window background behind the Flutter UI. -->
             <meta-data
-              android:name="io.flutter.embedding.android.NormalTheme"
-              android:resource="@style/NormalTheme"
-              />
+                android:name="io.flutter.embedding.android.NormalTheme"
+                android:resource="@style/NormalTheme"
+                />
             <intent-filter>
                 <action android:name="android.intent.action.MAIN"/>
                 <category android:name="android.intent.category.LAUNCHER"/>
+            </intent-filter>
+            <!-- Handles the io.eatsy.app://reset-password deep link that
+                 Supabase's password-reset email opens (see
+                 auth_controller.dart's sendPasswordResetEmail redirectTo).
+                 Without this, tapping the emailed link does nothing on
+                 Android — the app never even opens. -->
+            <intent-filter android:autoVerify="false">
+                <action android:name="android.intent.action.VIEW"/>
+                <category android:name="android.intent.category.DEFAULT"/>
+                <category android:name="android.intent.category.BROWSABLE"/>
+                <data android:scheme="io.eatsy.app" android:host="reset-password"/>
             </intent-filter>
         </activity>
         <!-- Don't delete the meta-data below.
