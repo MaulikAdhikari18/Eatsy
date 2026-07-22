@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../../core/utils/day_boundary.dart';
 
 const _dayLabels = ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN'];
 
@@ -56,14 +57,21 @@ class WeeklyTrendsSummary {
 // force a refetch of the whole week's trend data on every tap.
 final weeklyTrendsRefreshProvider = StateProvider<int>((ref) => 0);
 
-DateTime _mondayOfThisWeek() {
+/// Monday 00:00 in *local* time — deliberately NOT converted to UTC.
+/// This feeds each day's display date (dashboard_screen.dart's
+/// `_weekRangeLabel` reads `.month`/`.day` straight off it), so it has
+/// to stay in local calendar terms. The Supabase query range is built
+/// separately below via DayBoundary.startOfLocalWeek/endOfLocalWeek,
+/// which *do* convert to UTC — see day_boundary.dart for why sending
+/// this local value directly to a timestamptz column would be wrong.
+DateTime _localMondayOfThisWeek() {
   final now = DateTime.now();
   final today = DateTime(now.year, now.month, now.day);
   return today.subtract(Duration(days: today.weekday - 1));
 }
 
 WeeklyTrendsSummary _emptySummary({int goalCalories = 2000}) {
-  final monday = _mondayOfThisWeek();
+  final monday = _localMondayOfThisWeek();
   final days = List.generate(7, (i) {
     return DayTrend(
       label: _dayLabels[i],
@@ -88,20 +96,29 @@ FutureProvider<WeeklyTrendsSummary>((ref) async {
   if (userId == null) return _emptySummary();
 
   try {
-    final monday = _mondayOfThisWeek();
-    final nextMonday = monday.add(const Duration(days: 7));
+    // Local Monday drives display dates below; the query itself needs
+    // the UTC-converted equivalents (see DayBoundary's doc comment —
+    // sending localMonday's offset-less string straight to Supabase
+    // would shift the query window by the local UTC offset).
+    final localMonday = _localMondayOfThisWeek();
+    final queryStart = DayBoundary.startOfLocalWeek();
+    final queryEnd = DayBoundary.endOfLocalWeek();
 
     final logsResponse = await supabase
         .from('food_logs')
         .select('calories, protein, carbs, fat, logged_at')
         .eq('user_id', userId)
-        .gte('logged_at', monday.toIso8601String())
-        .lt('logged_at', nextMonday.toIso8601String());
+        .gte('logged_at', queryStart.toIso8601String())
+        .lt('logged_at', queryEnd.toIso8601String());
 
     // Bucket by weekday (Dart: 1=Mon .. 7=Sun) into 7 slots, 0=Mon.
+    // parseToLocal (not a bare DateTime.parse) matters here: Postgres
+    // returns logged_at with an explicit UTC offset, so parsing without
+    // converting to local first would bucket by the UTC calendar day
+    // instead of the day the user actually logged it on.
     final buckets = List.generate(7, (_) => <Map<String, dynamic>>[]);
     for (final row in (logsResponse as List)) {
-      final loggedAt = DateTime.parse(row['logged_at'] as String);
+      final loggedAt = DayBoundary.parseToLocal(row['logged_at'] as String);
       final idx = loggedAt.weekday - 1;
       if (idx >= 0 && idx < 7) {
         buckets[idx].add(Map<String, dynamic>.from(row));
@@ -119,7 +136,7 @@ FutureProvider<WeeklyTrendsSummary>((ref) async {
       }
       return DayTrend(
         label: _dayLabels[i],
-        date: monday.add(Duration(days: i)),
+        date: localMonday.add(Duration(days: i)),
         calories: cal,
         protein: protein,
         carbs: carbs,
@@ -148,8 +165,8 @@ FutureProvider<WeeklyTrendsSummary>((ref) async {
         .from('weight_logs')
         .select('weight, logged_at')
         .eq('user_id', userId)
-        .gte('logged_at', monday.toIso8601String())
-        .lt('logged_at', nextMonday.toIso8601String())
+        .gte('logged_at', queryStart.toIso8601String())
+        .lt('logged_at', queryEnd.toIso8601String())
         .order('logged_at', ascending: true);
 
     double? startWeight;
