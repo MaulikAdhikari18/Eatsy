@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../../core/utils/day_boundary.dart';
 
 class DashboardSummary {
   final double consumed;
@@ -51,9 +52,8 @@ FutureProvider<DashboardSummary>((ref) async {
   }
 
   try {
-    final now = DateTime.now();
-    final startOfDay = DateTime(now.year, now.month, now.day);
-    final endOfDay = startOfDay.add(const Duration(days: 1));
+    final startOfDay = DayBoundary.startOfLocalDay();
+    final endOfDay = DayBoundary.endOfLocalDay();
 
     final logsResponse = await supabase
         .from('food_logs')
