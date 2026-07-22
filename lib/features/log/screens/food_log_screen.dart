@@ -9,6 +9,7 @@ import '../../../core/theme/app_colors.dart';
 import '../../../shared/widgets/dotted_leader_row.dart';
 import '../../../shared/widgets/serving_quantity_picker.dart';
 import '../../../core/utils/serving_format.dart';
+import '../../../core/utils/day_boundary.dart';
 
 // AppTheme is only used here for AppFonts.mono. Every color below comes
 // from context.appColors (colors.*) — same as the Dashboard. There is
@@ -59,9 +60,8 @@ class _FoodLogScreenState extends ConsumerState<FoodLogScreen> {
       final userId = supabase.auth.currentUser?.id;
       if (userId == null) return;
 
-      final now = DateTime.now();
-      final startOfDay = DateTime(now.year, now.month, now.day);
-      final endOfDay = startOfDay.add(const Duration(days: 1));
+      final startOfDay = DayBoundary.startOfLocalDay();
+      final endOfDay = DayBoundary.endOfLocalDay();
 
       final logs = await supabase
           .from('food_logs')
@@ -135,7 +135,7 @@ class _FoodLogScreenState extends ConsumerState<FoodLogScreen> {
         'serving_size': servingSize,
         'quantity': quantity,
         'meal_type': mealType,
-        'logged_at': DateTime.now().toIso8601String(),
+        'logged_at': DayBoundary.nowUtcIso(),
       });
 
       // Trigger dashboard refresh
