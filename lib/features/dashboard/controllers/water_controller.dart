@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../../core/utils/day_boundary.dart';
 
 class WaterSummary {
   final int consumedMl;
@@ -22,9 +23,8 @@ final waterSummaryProvider = FutureProvider<WaterSummary>((ref) async {
   if (userId == null) return fallback;
 
   try {
-    final now = DateTime.now();
-    final startOfDay = DateTime(now.year, now.month, now.day);
-    final endOfDay = startOfDay.add(const Duration(days: 1));
+    final startOfDay = DayBoundary.startOfLocalDay();
+    final endOfDay = DayBoundary.endOfLocalDay();
 
     final logsResponse = await supabase
         .from('water_logs')
@@ -63,7 +63,7 @@ Future<void> logWaterMl(int amountMl) async {
   await supabase.from('water_logs').insert({
     'user_id': userId,
     'amount_ml': amountMl,
-    'logged_at': DateTime.now().toIso8601String(),
+    'logged_at': DayBoundary.nowUtcIso(),
   });
 }
 
