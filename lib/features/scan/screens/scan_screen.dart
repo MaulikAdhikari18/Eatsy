@@ -8,6 +8,7 @@ import '../../../core/theme/app_colors.dart';
 import '../../../shared/widgets/dotted_leader_row.dart';
 import '../../../shared/widgets/receipt_decorations.dart';
 import '../../../shared/widgets/serving_quantity_picker.dart';
+import '../../../core/utils/day_boundary.dart';
 
 // Every color below comes from context.appColors (colors.*), same as
 // the Dashboard and Food Log. AppTheme is only imported for
@@ -113,7 +114,7 @@ class _ScanScreenState extends State<ScanScreen> {
         'serving_size': _servingSize,
         'quantity': _quantity,
         'meal_type': _selectedMealType,
-        'logged_at': DateTime.now().toIso8601String(),
+        'logged_at': DayBoundary.nowUtcIso(),
       });
 
       if (mounted) {
