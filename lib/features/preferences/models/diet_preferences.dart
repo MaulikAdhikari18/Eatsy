@@ -1,3 +1,5 @@
+import '../../../core/utils/day_boundary.dart';
+
 /// A user's dietary profile — cuisine preferences, allergies, diet type,
 /// and known medical conditions. Used to personalize AI-generated meal
 /// plans (see Section 4 of the implementation guide).
@@ -31,7 +33,7 @@ class DietPreferences {
       'allergies': allergies,
       'diet_type': dietType,
       'medical_conditions': medicalConditions,
-      'updated_at': DateTime.now().toIso8601String(),
+      'updated_at': DayBoundary.nowUtcIso(),
     };
   }
 
