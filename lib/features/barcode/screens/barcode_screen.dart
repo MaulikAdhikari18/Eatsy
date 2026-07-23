@@ -7,6 +7,7 @@ import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../shared/widgets/receipt_decorations.dart';
 import '../../../shared/widgets/serving_quantity_picker.dart';
+import '../../../core/utils/day_boundary.dart';
 
 // Every color below comes from context.appColors (colors.*), same as
 // Dashboard / Scan / Food Log. AppTheme is only imported for AppFonts.mono
@@ -269,7 +270,7 @@ class _BarcodeScreenState extends State<BarcodeScreen> {
         'serving_size': servingSize,
         'quantity': quantity,
         'meal_type': mealType,
-        'logged_at': DateTime.now().toIso8601String(),
+        'logged_at': DayBoundary.nowUtcIso(),
       });
 
       if (mounted) {
