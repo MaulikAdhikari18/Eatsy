@@ -6,6 +6,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/utils/calorie_calculator.dart';
+import '../../../core/utils/day_boundary.dart';
 import '../../../shared/widgets/receipt_decorations.dart';
 
 class OnboardingScreen extends ConsumerStatefulWidget {
@@ -128,7 +129,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
       await supabase.from('weight_logs').insert({
         'user_id': userId,
         'weight': _currentWeight,
-        'logged_at': DateTime.now().toIso8601String(),
+        'logged_at': DayBoundary.nowUtcIso(),
       });
 
       // Mark onboarding as done
