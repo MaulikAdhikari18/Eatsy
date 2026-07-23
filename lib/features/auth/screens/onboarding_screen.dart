@@ -8,6 +8,8 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/utils/calorie_calculator.dart';
 import '../../../core/utils/day_boundary.dart';
 import '../../../shared/widgets/receipt_decorations.dart';
+import '../../../shared/widgets/diet_preferences_form.dart';
+import '../../preferences/models/diet_preferences.dart';
 
 class OnboardingScreen extends ConsumerStatefulWidget {
   const OnboardingScreen({super.key});
@@ -29,6 +31,10 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   double _height = 165;
   String _gender = 'female';
   String _activityLevel = 'moderate';
+  List<String> _dietCuisines = [];
+  List<String> _dietAllergies = [];
+  String _dietType = 'no_restriction';
+  List<String> _dietConditions = [];
 
   final List<Map<String, dynamic>> _goalTypes = [
     {'key': 'lose', 'label': 'Lose Weight', 'icon': '📉', 'desc': 'I want to lose weight and burn fat'},
@@ -43,8 +49,18 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
     {'key': 'active', 'label': 'Very Active', 'desc': 'Exercise 6-7 days/week', 'icon': '⚡'},
   ];
 
+  void _toggleDietSelection(List<String> list, String value) {
+    setState(() {
+      if (list.contains(value)) {
+        list.remove(value);
+      } else {
+        list.add(value);
+      }
+    });
+  }
+
   void _nextPage() {
-    if (_currentPage < 3) {
+    if (_currentPage < 4) {
       _pageController.nextPage(
         duration: const Duration(milliseconds: 300),
         curve: Curves.easeInOut,
@@ -66,12 +82,11 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   Future<void> _saveAndContinue() async {
     setState(() => _isLoading = true);
     try {
-      // Same BMR (Mifflin-St Jeor) → TDEE → calorie target → macro
-      // pipeline used by Goals screen's "Calculate My Targets" button.
-      // Diet preferences haven't been collected yet at this point in the
-      // flow, so this uses the no-restriction default split — once the
-      // user sets cuisine/diet type/allergies later, they can re-run
-      // "Calculate My Targets" on the Goals screen to refine it further.
+      // Diet preferences are now collected as part of this same
+      // onboarding flow (see the diet-preferences page below), so the
+      // calorie/macro split can use the user's real dietType and
+      // medicalConditions immediately instead of the previous
+      // no_restriction/empty-list placeholder.
       final targets = CalorieCalculator.calculateFullTargets(
         weightKg: _currentWeight,
         heightCm: _height,
@@ -79,8 +94,8 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
         gender: _gender,
         activityLevel: _activityLevel,
         goalType: _goalType,
-        dietType: 'no_restriction',
-        medicalConditions: const [],
+        dietType: _dietType,
+        medicalConditions: _dietConditions,
       );
 
       final supabase = Supabase.instance.client;
@@ -132,6 +147,20 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
         'logged_at': DayBoundary.nowUtcIso(),
       });
 
+      // Save diet preferences — same upsert shape as
+      // DietPreferencesController.save(), so whether someone sets these
+      // here during onboarding or later from the Goals screen, they end
+      // up in the same row with the same column layout.
+      await supabase.from('user_preferences').upsert(
+        DietPreferences(
+          cuisines: _dietCuisines,
+          allergies: _dietAllergies,
+          dietType: _dietType,
+          medicalConditions: _dietConditions,
+        ).toMap(userId),
+        onConflict: 'user_id',
+      );
+
       // Mark onboarding as done
       final prefs = await SharedPreferences.getInstance();
       await prefs.setBool('onboarding_done_$userId', true);
@@ -162,7 +191,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
               child: Column(
                 children: [
                   Row(
-                    children: List.generate(4, (index) {
+                    children: List.generate(5, (index) {
                       return Expanded(
                         child: Container(
                           margin: const EdgeInsets.only(right: 6),
@@ -182,7 +211,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Text(
-                        'STEP ${_currentPage + 1} OF 4',
+                        'STEP ${_currentPage + 1} OF 5',
                         style: AppFonts.mono(
                           fontSize: 11,
                           color: colors.textSecondary,
@@ -237,6 +266,20 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                     activityLevels: _activityLevels,
                     onSelected: (key) => setState(() => _activityLevel = key),
                   ),
+                  _DietPreferencesPage(
+                    selectedCuisines: _dietCuisines,
+                    selectedAllergies: _dietAllergies,
+                    selectedDietType: _dietType,
+                    selectedConditions: _dietConditions,
+                    onToggleCuisine: (v) =>
+                        _toggleDietSelection(_dietCuisines, v),
+                    onToggleAllergy: (v) =>
+                        _toggleDietSelection(_dietAllergies, v),
+                    onToggleCondition: (v) =>
+                        _toggleDietSelection(_dietConditions, v),
+                    onDietTypeSelected: (key) =>
+                        setState(() => _dietType = key),
+                  ),
                 ],
               ),
             ),
@@ -255,7 +298,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                   ),
                 )
                     : Text(
-                  _currentPage == 3 ? 'Get Started 🚀' : 'Continue',
+                  _currentPage == 4 ? 'Get Started 🚀' : 'Continue',
                   style: const TextStyle(fontSize: 16),
                 ),
               ),
@@ -848,6 +891,73 @@ class _ActivityPage extends StatelessWidget {
               ),
             );
           }),
+        ],
+      ),
+    );
+  }
+}
+// Page 5 — Diet Preferences
+class _DietPreferencesPage extends StatelessWidget {
+  final List<String> selectedCuisines;
+  final List<String> selectedAllergies;
+  final String selectedDietType;
+  final List<String> selectedConditions;
+  final ValueChanged<String> onToggleCuisine;
+  final ValueChanged<String> onToggleAllergy;
+  final ValueChanged<String> onToggleCondition;
+  final ValueChanged<String> onDietTypeSelected;
+
+  const _DietPreferencesPage({
+    required this.selectedCuisines,
+    required this.selectedAllergies,
+    required this.selectedDietType,
+    required this.selectedConditions,
+    required this.onToggleCuisine,
+    required this.onToggleAllergy,
+    required this.onToggleCondition,
+    required this.onDietTypeSelected,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.appColors;
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(24),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Personalize your plan',
+            style: TextStyle(
+                fontSize: 26, fontWeight: FontWeight.w800, color: colors.textPrimary),
+          ),
+          const SizedBox(height: 8),
+          // Explicitly framed as optional/skippable — unlike goal type,
+          // weight, or activity level, none of this blocks the app from
+          // working. Leaving everything at its default (no cuisines
+          // picked, no_restriction, no allergies/conditions) is a valid
+          // choice, not an incomplete one, and "Get Started" below works
+          // exactly the same either way — there's no separate Skip
+          // button because there's nothing to skip past.
+          Text(
+            'This shapes your AI meal plans — cuisine, allergies, diet '
+                'type, and medical considerations. Totally optional: skip '
+                'anything you\'re not sure about and adjust it later from '
+                'Goals.',
+            style: TextStyle(color: colors.textSecondary, fontSize: 14, height: 1.4),
+          ),
+          const SizedBox(height: 28),
+          DietPreferencesForm(
+            selectedCuisines: selectedCuisines,
+            selectedAllergies: selectedAllergies,
+            selectedDietType: selectedDietType,
+            selectedConditions: selectedConditions,
+            onToggleCuisine: onToggleCuisine,
+            onToggleAllergy: onToggleAllergy,
+            onToggleCondition: onToggleCondition,
+            onDietTypeSelected: onDietTypeSelected,
+          ),
+          const SizedBox(height: 12),
         ],
       ),
     );

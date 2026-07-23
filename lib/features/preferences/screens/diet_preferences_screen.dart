@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/diet_preferences.dart';
 import '../controllers/diet_preferences_controller.dart';
-import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../shared/widgets/diet_preferences_form.dart';
 
 class DietPreferencesScreen extends ConsumerStatefulWidget {
   const DietPreferencesScreen({super.key});
@@ -123,81 +123,16 @@ class _DietPreferencesScreenState
             ),
             const SizedBox(height: 28),
 
-            _SectionLabel('🌏 Cuisines you enjoy', colors),
-            const SizedBox(height: 4),
-            _SectionHint('SELECT ALL THAT APPLY', colors),
-            const SizedBox(height: 12),
-            _ChipGroup(
-              options: DietPreferenceOptions.cuisines,
-              selected: _selectedCuisines,
-              onToggle: (v) => _toggle(_selectedCuisines, v),
-              chipColor: colors.protein,
-            ),
-
-            const SizedBox(height: 28),
-            _SectionLabel('🍽️ Diet type', colors),
-            const SizedBox(height: 12),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: DietPreferenceOptions.dietTypes.map((type) {
-                final isSelected = _selectedDietType == type['key'];
-                return GestureDetector(
-                  onTap: () =>
-                      setState(() => _selectedDietType = type['key']!),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 16, vertical: 10),
-                    decoration: BoxDecoration(
-                      color: isSelected
-                          ? colors.labelCard
-                          : colors.surfaceVariant,
-                      borderRadius: BorderRadius.circular(20),
-                      border: Border.all(
-                        color: isSelected
-                            ? colors.labelCard
-                            : colors.divider,
-                      ),
-                    ),
-                    child: Text(
-                      type['label']!,
-                      style: TextStyle(
-                        color: isSelected
-                            ? Colors.white
-                            : colors.textSecondary,
-                        fontWeight: FontWeight.w500,
-                        fontSize: 13,
-                      ),
-                    ),
-                  ),
-                );
-              }).toList(),
-            ),
-
-            const SizedBox(height: 28),
-            _SectionLabel('⚠️ Allergies / intolerances', colors),
-            const SizedBox(height: 4),
-            _SectionHint("WE'LL EXCLUDE THESE FROM EVERY PLAN", colors),
-            const SizedBox(height: 12),
-            _ChipGroup(
-              options: DietPreferenceOptions.allergies,
-              selected: _selectedAllergies,
-              onToggle: (v) => _toggle(_selectedAllergies, v),
-              chipColor: colors.fat,
-            ),
-
-            const SizedBox(height: 28),
-            _SectionLabel('🩺 Known medical conditions', colors),
-            const SizedBox(height: 4),
-            _SectionHint(
-                'OPTIONAL — HELPS US TAILOR SODIUM, SUGAR & GI FOCUS',
-                colors),
-            const SizedBox(height: 12),
-            _ChipGroup(
-              options: DietPreferenceOptions.medicalConditions,
-              selected: _selectedConditions,
-              onToggle: (v) => _toggle(_selectedConditions, v),
-              chipColor: colors.dinner,
+            DietPreferencesForm(
+              selectedCuisines: _selectedCuisines,
+              selectedAllergies: _selectedAllergies,
+              selectedDietType: _selectedDietType,
+              selectedConditions: _selectedConditions,
+              onToggleCuisine: (v) => _toggle(_selectedCuisines, v),
+              onToggleAllergy: (v) => _toggle(_selectedAllergies, v),
+              onToggleCondition: (v) => _toggle(_selectedConditions, v),
+              onDietTypeSelected: (key) =>
+                  setState(() => _selectedDietType = key),
             ),
 
             const SizedBox(height: 32),
@@ -218,103 +153,6 @@ class _DietPreferencesScreenState
           ],
         ),
       ),
-    );
-  }
-}
-
-class _SectionLabel extends StatelessWidget {
-  final String text;
-  final AppColors colors;
-  const _SectionLabel(this.text, this.colors);
-
-  @override
-  Widget build(BuildContext context) {
-    return Text(
-      text,
-      style: TextStyle(
-        fontSize: 16,
-        fontWeight: FontWeight.w800,
-        color: colors.textPrimary,
-      ),
-    );
-  }
-}
-
-/// Small mono uppercase hint text — same eyebrow-label treatment used for
-/// field labels and data tags elsewhere in the app.
-class _SectionHint extends StatelessWidget {
-  final String text;
-  final AppColors colors;
-  const _SectionHint(this.text, this.colors);
-
-  @override
-  Widget build(BuildContext context) {
-    return Text(
-      text,
-      style: AppFonts.mono(
-        fontSize: 10,
-        color: colors.textMuted,
-        letterSpacing: 0.6,
-      ),
-    );
-  }
-}
-
-class _ChipGroup extends StatelessWidget {
-  final List<String> options;
-  final List<String> selected;
-  final void Function(String) onToggle;
-  final Color chipColor;
-
-  const _ChipGroup({
-    required this.options,
-    required this.selected,
-    required this.onToggle,
-    required this.chipColor,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = context.appColors;
-    return Wrap(
-      spacing: 8,
-      runSpacing: 8,
-      children: options.map((option) {
-        final isSelected = selected.contains(option);
-        return GestureDetector(
-          onTap: () => onToggle(option),
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
-            decoration: BoxDecoration(
-              color: isSelected
-                  ? chipColor.withOpacity(0.14)
-                  : colors.surfaceVariant,
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(
-                color: isSelected ? chipColor : colors.divider,
-                width: isSelected ? 1.5 : 1,
-              ),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                if (isSelected) ...[
-                  Icon(Icons.check, size: 14, color: chipColor),
-                  const SizedBox(width: 4),
-                ],
-                Text(
-                  option,
-                  style: TextStyle(
-                    color: isSelected ? chipColor : colors.textSecondary,
-                    fontWeight: FontWeight.w500,
-                    fontSize: 13,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        );
-      }).toList(),
     );
   }
 }
