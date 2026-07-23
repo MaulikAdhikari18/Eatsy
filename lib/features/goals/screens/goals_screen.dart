@@ -10,6 +10,7 @@ import '../../dashboard/controllers/water_controller.dart';
 import '../../../core/settings/unit_preferences_provider.dart';
 import '../../../core/utils/unit_converter.dart';
 import '../../../shared/widgets/unit_dropdown.dart';
+import '../../../core/utils/day_boundary.dart';
 
 // Every color below comes from context.appColors (colors.*), same as
 // Dashboard / Scan / Food Log / Barcode. AppTheme is only imported for
@@ -231,7 +232,7 @@ class _GoalsScreenState extends ConsumerState<GoalsScreen> {
         'user_id': userId,
         'weight':
         _parseWeightToKg(_currentWeightController.text, ref.read(weightUnitProvider)) ?? 0,
-        'logged_at': DateTime.now().toIso8601String(),
+        'logged_at': DayBoundary.nowUtcIso(),
       });
 
       _currentWeightController.clear();
@@ -926,7 +927,7 @@ class _GoalsScreenState extends ConsumerState<GoalsScreen> {
                       Divider(height: 1, color: colors.divider),
                   itemBuilder: (context, index) {
                     final log = _weightLogs[index];
-                    final date = DateTime.parse(
+                    final date = DayBoundary.parseToLocal(
                         log['logged_at'].toString());
                     final unitAbbrev =
                         weightUnitOptions.firstWhere((o) => o.value == weightUnit).abbrev;
