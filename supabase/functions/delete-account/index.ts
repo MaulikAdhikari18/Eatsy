@@ -29,6 +29,7 @@ const USER_ID_TABLES = [
   "weight_logs",
   "diet_plans",
   "user_preferences",
+  "health_daily_summary",
 ];
 const ID_KEYED_TABLES = ["profiles"];
 

@@ -11,6 +11,7 @@ import '../../features/auth/screens/delete_account_screen.dart';
 import '../../features/auth/screens/onboarding_screen.dart';
 import '../../features/dashboard/screens/dashboard_screen.dart';
 import '../../features/preferences/screens/diet_preferences_screen.dart';
+import '../../features/health/screens/connect_health_screen.dart';
 import '../theme/app_colors.dart';
 
 
@@ -53,6 +54,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/diet-preferences',
         builder: (context, state) => const DietPreferencesScreen(),
+      ),
+      GoRoute(
+        path: '/connect-health',
+        builder: (context, state) => const ConnectHealthScreen(),
       ),
     ],
   );

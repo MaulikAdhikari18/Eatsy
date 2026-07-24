@@ -211,6 +211,16 @@ class _HomeTab extends ConsumerWidget {
               },
             ),
             ListTile(
+              leading: Icon(Icons.favorite_border, color: colors.textSecondary),
+              title: const Text('Connect Health Data'),
+              subtitle: Text('Steps, sleep, heart rate & more',
+                  style: TextStyle(color: colors.textMuted, fontSize: 12)),
+              onTap: () {
+                Navigator.pop(sheetContext);
+                context.push('/connect-health');
+              },
+            ),
+            ListTile(
               leading: Icon(Icons.privacy_tip_outlined, color: colors.textSecondary),
               title: const Text('Privacy Policy'),
               onTap: () {
