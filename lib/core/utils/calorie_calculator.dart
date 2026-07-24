@@ -3,7 +3,7 @@
 ///
 /// This is pure calculation logic with no dependency on Flutter or
 /// Supabase, so it's easy to unit test independently of the UI.
-library calorie_calculator;
+library;
 
 class MacroTargets {
   final int calories;

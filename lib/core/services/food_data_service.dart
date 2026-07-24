@@ -1,4 +1,5 @@
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
 
 /// Replaces FatSecret as the backend for food search and barcode
 /// lookup. Open Food Facts needs no API key, no OAuth token, and — the
@@ -78,7 +79,7 @@ class FoodDataService {
 
       return results.isEmpty ? _localSearch(query) : results;
     } catch (e) {
-      print('❌ Open Food Facts search error: $e');
+      debugPrint('❌ Open Food Facts search error: $e');
       return _localSearch(query);
     }
   }
@@ -110,7 +111,7 @@ class FoodDataService {
       return _mapProduct(response.data['product'] as Map<String, dynamic>,
           requireEnglishName: false);
     } catch (e) {
-      print('❌ Barcode error: $e');
+      debugPrint('❌ Barcode error: $e');
       return null;
     }
   }
@@ -204,7 +205,7 @@ class FoodDataService {
 
   /// Pulls a gram figure out of Open Food Facts' free-text serving_size
   /// field. Tries an anchored match first ("30 g", "30g" at the very
-  /// start), then falls back to finding a "<number> g" pattern anywhere
+  /// start), then falls back to finding a `"<number> g"` pattern anywhere
   /// in the string (e.g. "1 bar (40 g)"). Returns null, not a guess,
   /// when nothing matches — a wrong silent guess here would be worse
   /// than the picker's honest "no unit conversion available" fallback.

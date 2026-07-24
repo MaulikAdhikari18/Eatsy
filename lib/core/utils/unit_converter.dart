@@ -16,7 +16,7 @@ import '../settings/unit_preferences_provider.dart' show UnitOption;
 /// not a persisted app-wide preference, so — unlike WeightUnit/
 /// WaterUnit/HeightUnit — there's no *UnitController/*UnitProvider for
 /// MeasureUnit in unit_preferences_provider.dart. It reuses that file's
-/// UnitOption<T> shape for the dropdown, but the enum and its
+/// `UnitOption<T>` shape for the dropdown, but the enum and its
 /// conversion table live here instead, next to the math that resolves it.
 class UnitConverter {
   static const double kgPerLb = 0.45359237;

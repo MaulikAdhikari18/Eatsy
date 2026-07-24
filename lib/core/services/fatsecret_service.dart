@@ -1,4 +1,5 @@
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
 import '../config/app_config.dart';
 
 class FatSecretService {
@@ -22,7 +23,7 @@ class FatSecretService {
       options: _options,
       data: {'method': method, 'params': params},
     );
-    print('📦 Proxy response [$method]: ${response.data}');
+    debugPrint('📦 Proxy response [$method]: ${response.data}');
     return response.data;
   }
 
@@ -35,7 +36,7 @@ class FatSecretService {
       });
 
       if (data['error'] != null) {
-        print('❌ API error: ${data['error']}');
+        debugPrint('❌ API error: ${data['error']}');
         return _localSearch(query);
       }
 
@@ -55,7 +56,7 @@ class FatSecretService {
         };
       }).toList();
     } catch (e) {
-      print('❌ Search error: $e');
+      debugPrint('❌ Search error: $e');
       return _localSearch(query);
     }
   }
@@ -77,7 +78,7 @@ class FatSecretService {
 
       return await getFoodById(foodId);
     } catch (e) {
-      print('❌ Barcode error: $e');
+      debugPrint('❌ Barcode error: $e');
       return null;
     }
   }
@@ -106,7 +107,7 @@ class FatSecretService {
             firstServing?['fat']?.toString() ?? '0') ?? 0,
       };
     } catch (e) {
-      print('❌ Food detail error: $e');
+      debugPrint('❌ Food detail error: $e');
       return null;
     }
   }

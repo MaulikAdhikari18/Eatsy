@@ -31,10 +31,10 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   double _height = 165;
   String _gender = 'female';
   String _activityLevel = 'moderate';
-  List<String> _dietCuisines = [];
-  List<String> _dietAllergies = [];
+  final List<String> _dietCuisines = [];
+  final List<String> _dietAllergies = [];
   String _dietType = 'no_restriction';
-  List<String> _dietConditions = [];
+  final List<String> _dietConditions = [];
 
   final List<Map<String, dynamic>> _goalTypes = [
     {'key': 'lose', 'label': 'Lose Weight', 'icon': '📉', 'desc': 'I want to lose weight and burn fat'},
@@ -395,7 +395,7 @@ class _FeatureRow extends StatelessWidget {
           Container(
             padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
-              color: colors.accent.withOpacity(0.15),
+              color: colors.accent.withValues(alpha: 0.15),
               borderRadius: BorderRadius.circular(12),
             ),
             child: Icon(icon, color: colors.textPrimary, size: 20),
@@ -457,7 +457,7 @@ class _GoalTypePage extends StatelessWidget {
                 margin: const EdgeInsets.only(bottom: 16),
                 padding: const EdgeInsets.all(20),
                 decoration: BoxDecoration(
-                  color: isSelected ? colors.accent.withOpacity(0.10) : colors.surface,
+                  color: isSelected ? colors.accent.withValues(alpha: 0.10) : colors.surface,
                   borderRadius: BorderRadius.circular(16),
                   border: Border.all(
                     color: isSelected ? colors.accent : colors.divider,
@@ -687,7 +687,7 @@ class _WeightCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: colors.surface,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: color.withOpacity(0.35)),
+        border: Border.all(color: color.withValues(alpha: 0.35)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -729,7 +729,7 @@ class _WeightCard extends StatelessWidget {
             min: min,
             max: max,
             activeColor: color,
-            inactiveColor: color.withOpacity(0.2),
+            inactiveColor: color.withValues(alpha: 0.2),
             onChanged: onChanged,
           ),
         ],
@@ -772,7 +772,7 @@ class _StepperCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: colors.surface,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: color.withOpacity(0.35)),
+        border: Border.all(color: color.withValues(alpha: 0.35)),
       ),
       child: Column(
         children: [
@@ -849,7 +849,7 @@ class _ActivityPage extends StatelessWidget {
                 margin: const EdgeInsets.only(bottom: 12),
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: isSelected ? colors.accent.withOpacity(0.10) : colors.surface,
+                  color: isSelected ? colors.accent.withValues(alpha: 0.10) : colors.surface,
                   borderRadius: BorderRadius.circular(16),
                   border: Border.all(
                     color: isSelected ? colors.accent : colors.divider,
