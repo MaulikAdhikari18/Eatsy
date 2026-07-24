@@ -921,7 +921,7 @@ class _MealPlanCard extends StatelessWidget {
                   child: Container(
                     padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                     decoration: BoxDecoration(
-                      color: color.withOpacity(0.12),
+                      color: color.withValues(alpha: 0.12),
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Text(
@@ -964,7 +964,7 @@ class _MiniMacro extends StatelessWidget {
         children: [
           TextSpan(
             text: '$label ',
-            style: AppFonts.mono(fontSize: 11, color: color.withOpacity(0.7)),
+            style: AppFonts.mono(fontSize: 11, color: color.withValues(alpha: 0.7)),
           ),
           TextSpan(
             text: value,

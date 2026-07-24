@@ -413,7 +413,7 @@ class _FoodLogScreenState extends ConsumerState<FoodLogScreen> {
                   shrinkWrap: true,
                   children: _searchResults.map((food) => ListTile(
                     leading: CircleAvatar(
-                      backgroundColor: colors.accent.withOpacity(0.15),
+                      backgroundColor: colors.accent.withValues(alpha: 0.15),
                       child: Icon(Icons.restaurant,
                           color: colors.accent, size: 20),
                     ),

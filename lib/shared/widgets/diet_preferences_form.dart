@@ -179,7 +179,7 @@ class DietChipGroup extends StatelessWidget {
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
             decoration: BoxDecoration(
               color: isSelected
-                  ? chipColor.withOpacity(0.14)
+                  ? chipColor.withValues(alpha: 0.14)
                   : colors.surfaceVariant,
               borderRadius: BorderRadius.circular(20),
               border: Border.all(

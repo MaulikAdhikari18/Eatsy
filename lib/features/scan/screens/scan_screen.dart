@@ -172,7 +172,7 @@ class _ScanScreenState extends State<ScanScreen> {
                     color: colors.surface,
                     borderRadius: BorderRadius.circular(20),
                     border: Border.all(
-                      color: colors.accent.withOpacity(0.35),
+                      color: colors.accent.withValues(alpha: 0.35),
                       width: 2,
                     ),
                   ),
@@ -187,7 +187,7 @@ class _ScanScreenState extends State<ScanScreen> {
                       Container(
                         padding: const EdgeInsets.all(20),
                         decoration: BoxDecoration(
-                          color: colors.accent.withOpacity(0.12),
+                          color: colors.accent.withValues(alpha: 0.12),
                           shape: BoxShape.circle,
                         ),
                         child: Icon(Icons.camera_alt,
@@ -376,7 +376,7 @@ class _ScanScreenState extends State<ScanScreen> {
           children: [
             ListTile(
               leading: CircleAvatar(
-                backgroundColor: colors.accent.withOpacity(0.15),
+                backgroundColor: colors.accent.withValues(alpha: 0.15),
                 child: Icon(Icons.camera_alt, color: colors.accent),
               ),
               title: const Text('Take a Photo'),
@@ -387,7 +387,7 @@ class _ScanScreenState extends State<ScanScreen> {
             ),
             ListTile(
               leading: CircleAvatar(
-                backgroundColor: colors.dinner.withOpacity(0.15),
+                backgroundColor: colors.dinner.withValues(alpha: 0.15),
                 child: Icon(Icons.photo_library, color: colors.dinner),
               ),
               title: const Text('Choose from Gallery'),
