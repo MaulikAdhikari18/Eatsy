@@ -66,6 +66,13 @@ dependencies:
   # it in a future version.
   url_launcher: ^6.3.2
 
+  # Reads steps, active calories, heart rate, sleep, and weight from
+  # Apple HealthKit (iOS) and Google Health Connect (Android) — one
+  # cross-platform package rather than hand-writing separate native
+  # platform channels for each OS. Read-only for v1; the plugin also
+  # supports writing data, which Eatsy doesn't use.
+  health: ^13.3.1
+
   #Google Fonts
   google_fonts: ^6.2.1
 
