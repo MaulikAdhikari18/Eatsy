@@ -39,6 +39,16 @@
 		<string>????</string>
 		<key>CFBundleVersion</key>
 		<string>$(FLUTTER_BUILD_NUMBER)</string>
+		<!-- Required by the health package for HealthKit access (steps,
+		     active calories, heart rate, sleep, weight — see
+		     lib/core/services/health_service.dart). App Store review
+		     rejects apps that request HealthKit without both of these
+		     present, and the wording must clearly explain the actual
+		     reason to the person, not be generic boilerplate. -->
+		<key>NSHealthShareUsageDescription</key>
+		<string>Eatsy reads your steps, active calories, heart rate, sleep, and weight from Apple Health to personalize your nutrition targets and show your daily activity alongside your food log.</string>
+		<key>NSHealthUpdateUsageDescription</key>
+		<string>Eatsy does not currently write any data back to Apple Health. This permission is requested by the health package's shared authorization flow but is unused.</string>
 		<key>LSRequiresIPhoneOS</key>
 		<true/>
 		<key>UILaunchStoryboardName</key>

@@ -24,7 +24,14 @@ android {
         applicationId = "com.maulik.eatsy.eatsy"
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
-        minSdk = flutter.minSdkVersion
+        // Health Connect's own client library (pulled in by the health
+        // package, see pubspec.yaml) requires minSdk 26 in its manifest —
+        // Gradle's manifest merge fails the whole Android build outright
+        // if this project's minSdk is lower, regardless of what
+        // flutter.minSdkVersion happens to resolve to. maxOf(...) keeps
+        // this correct even if Flutter's own default rises above 26 in
+        // a future SDK version, without ever silently dropping below it.
+        minSdk = maxOf(26, flutter.minSdkVersion)
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
