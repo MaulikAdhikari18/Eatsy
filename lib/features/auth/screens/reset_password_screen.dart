@@ -108,7 +108,7 @@ class _ResetPasswordScreenState extends ConsumerState<ResetPasswordScreen> {
                 width: 56,
                 height: 56,
                 decoration: BoxDecoration(
-                  color: colors.accent.withOpacity(0.15),
+                  color: colors.accent.withValues(alpha: 0.15),
                   borderRadius: BorderRadius.circular(16),
                 ),
                 child: Icon(Icons.lock_reset, size: 28, color: colors.accent),

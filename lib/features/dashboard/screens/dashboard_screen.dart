@@ -471,7 +471,7 @@ class _ThemeOption extends StatelessWidget {
         child: Container(
           padding: const EdgeInsets.symmetric(vertical: 12),
           decoration: BoxDecoration(
-            color: selected ? colors.accent.withOpacity(0.18) : colors.surfaceVariant,
+            color: selected ? colors.accent.withValues(alpha: 0.18) : colors.surfaceVariant,
             borderRadius: BorderRadius.circular(12),
             border: Border.all(
               color: selected ? colors.accent : colors.divider,
@@ -795,9 +795,9 @@ class _WaterPillButton extends StatelessWidget {
         child: Container(
           padding: const EdgeInsets.symmetric(vertical: 10),
           decoration: BoxDecoration(
-            color: color.withOpacity(0.12),
+            color: color.withValues(alpha: 0.12),
             borderRadius: BorderRadius.circular(10),
-            border: Border.all(color: color.withOpacity(0.35)),
+            border: Border.all(color: color.withValues(alpha: 0.35)),
           ),
           child: Text(
             label,
@@ -876,7 +876,7 @@ class _TipCard extends ConsumerWidget {
           decoration: BoxDecoration(
             color: colors.surface,
             borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: color.withOpacity(0.3)),
+            border: Border.all(color: color.withValues(alpha: 0.3)),
           ),
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -884,7 +884,7 @@ class _TipCard extends ConsumerWidget {
               Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: color.withOpacity(0.12),
+                  color: color.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: Icon(_iconFor(tip.category), size: 18, color: color),
@@ -1192,7 +1192,7 @@ class _WeeklyTrendsCardState extends ConsumerState<_WeeklyTrendsCard> {
                   left: 0,
                   right: 0,
                   bottom: goalLineFromBottom,
-                  child: Container(height: 1.5, color: colors.textMuted.withOpacity(0.4)),
+                  child: Container(height: 1.5, color: colors.textMuted.withValues(alpha: 0.4)),
                 ),
                 Positioned.fill(
                   child: Row(

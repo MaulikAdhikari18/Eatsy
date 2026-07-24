@@ -502,14 +502,14 @@ class _GoalsScreenState extends ConsumerState<GoalsScreen> {
                   color: colors.surface,
                   borderRadius: BorderRadius.circular(16),
                   border:
-                  Border.all(color: colors.accent.withOpacity(0.35)),
+                  Border.all(color: colors.accent.withValues(alpha: 0.35)),
                 ),
                 child: Row(
                   children: [
                     Container(
                       padding: const EdgeInsets.all(10),
                       decoration: BoxDecoration(
-                        color: colors.accent.withOpacity(0.15),
+                        color: colors.accent.withValues(alpha: 0.15),
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: Icon(Icons.restaurant_menu,
@@ -933,7 +933,7 @@ class _GoalsScreenState extends ConsumerState<GoalsScreen> {
                         weightUnitOptions.firstWhere((o) => o.value == weightUnit).abbrev;
                     return ListTile(
                       leading: CircleAvatar(
-                        backgroundColor: colors.protein.withOpacity(0.14),
+                        backgroundColor: colors.protein.withValues(alpha: 0.14),
                         child: Icon(Icons.monitor_weight,
                             color: colors.protein, size: 20),
                       ),
