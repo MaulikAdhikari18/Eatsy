@@ -94,172 +94,213 @@ class _HomeTab extends ConsumerWidget {
 
   void _showProfileMenu(BuildContext context, WidgetRef ref) {
     final email = Supabase.instance.client.auth.currentUser?.email ?? '';
-    final colors = context.appColors;
 
     showModalBottomSheet(
       context: context,
-      backgroundColor: colors.surface,
+      // Transparent here on purpose — the real surface color is drawn
+      // inside the Consumer below instead, so it can react live to
+      // theme changes. That's the actual fix for "theme doesn't apply
+      // until I close and reopen this sheet": the old version read
+      // `context.appColors` once, outside any reactive builder, right
+      // when the sheet opened — a plain one-time value capture, not a
+      // live subscription — so it simply never updated again after
+      // that, no matter what the person tapped inside the sheet.
+      backgroundColor: Colors.transparent,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
-      builder: (sheetContext) => Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Center(
-              child: Container(
-                width: 40,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: colors.divider,
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
+      builder: (sheetContext) => Consumer(
+        // Wrapping the ENTIRE sheet body in one Consumer — not just the
+        // 3 theme buttons like before — means this whole subtree
+        // rebuilds the instant themeModeProvider changes, with `colors`
+        // freshly re-read from consumerContext on every rebuild rather
+        // than captured once and gone stale.
+        //
+        // Named consumerContext (not context) deliberately — every
+        // onTap handler below still needs the OUTER _showProfileMenu
+        // context, not this one. This Consumer's own context belongs to
+        // a subtree that gets torn down the instant the sheet closes
+        // (Navigator.pop(sheetContext)), so e.g. Sign Out's
+        // `if (context.mounted) context.go('/')` check would start
+        // failing almost immediately if it accidentally captured this
+        // short-lived context instead of the long-lived Dashboard one
+        // that was already in scope before this Consumer existed.
+        builder: (consumerContext, ref, _) {
+          final colors = consumerContext.appColors;
+          final currentMode = ref.watch(themeModeProvider);
+
+          return Container(
+            decoration: BoxDecoration(
+              color: colors.surface,
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
             ),
-            const SizedBox(height: 20),
-            Row(
-              children: [
-                CircleAvatar(
-                  backgroundColor: colors.accent,
-                  radius: 24,
-                  child: Icon(Icons.person, color: colors.accentOnColor),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Text(
-                    email,
-                    style: TextStyle(
-                      fontWeight: FontWeight.w600,
-                      fontSize: 15,
-                      color: colors.textPrimary,
-                    ),
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 24),
-            Text(
-              'Appearance',
-              style: TextStyle(
-                fontWeight: FontWeight.w600,
-                fontSize: 13,
-                color: colors.textSecondary,
-              ),
-            ),
-            const SizedBox(height: 10),
-            Consumer(
-              builder: (context, ref, _) {
-                final currentMode = ref.watch(themeModeProvider);
-                return Row(
+            // SingleChildScrollView rather than a fixed-height Column —
+            // this sheet now has 7 menu items plus the header and theme
+            // row, which can exceed the available height on shorter
+            // screens (that's what caused the "BOTTOM OVERFLOWED BY 147
+            // PIXELS" error). Degrades to non-scrolling automatically on
+            // taller screens where everything already fits.
+            child: SingleChildScrollView(
+              child: Padding(
+                padding: const EdgeInsets.all(20),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    _ThemeOption(
-                      icon: Icons.light_mode_outlined,
-                      label: 'Light',
-                      selected: currentMode == ThemeMode.light,
-                      onTap: () => ref
-                          .read(themeModeProvider.notifier)
-                          .setThemeMode(ThemeMode.light),
+                    Center(
+                      child: Container(
+                        width: 40,
+                        height: 4,
+                        decoration: BoxDecoration(
+                          color: colors.divider,
+                          borderRadius: BorderRadius.circular(2),
+                        ),
+                      ),
                     ),
-                    const SizedBox(width: 10),
-                    _ThemeOption(
-                      icon: Icons.dark_mode_outlined,
-                      label: 'Dark',
-                      selected: currentMode == ThemeMode.dark,
-                      onTap: () => ref
-                          .read(themeModeProvider.notifier)
-                          .setThemeMode(ThemeMode.dark),
+                    const SizedBox(height: 20),
+                    Row(
+                      children: [
+                        CircleAvatar(
+                          backgroundColor: colors.accent,
+                          radius: 24,
+                          child: Icon(Icons.person, color: colors.accentOnColor),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Text(
+                            email,
+                            style: TextStyle(
+                              fontWeight: FontWeight.w600,
+                              fontSize: 15,
+                              color: colors.textPrimary,
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
                     ),
-                    const SizedBox(width: 10),
-                    _ThemeOption(
-                      icon: Icons.settings_suggest_outlined,
-                      label: 'System',
-                      selected: currentMode == ThemeMode.system,
-                      onTap: () => ref
-                          .read(themeModeProvider.notifier)
-                          .setThemeMode(ThemeMode.system),
+                    const SizedBox(height: 24),
+                    Text(
+                      'Appearance',
+                      style: TextStyle(
+                        fontWeight: FontWeight.w600,
+                        fontSize: 13,
+                        color: colors.textSecondary,
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    Row(
+                      children: [
+                        _ThemeOption(
+                          icon: Icons.light_mode_outlined,
+                          label: 'Light',
+                          selected: currentMode == ThemeMode.light,
+                          onTap: () => ref
+                              .read(themeModeProvider.notifier)
+                              .setThemeMode(ThemeMode.light),
+                        ),
+                        const SizedBox(width: 10),
+                        _ThemeOption(
+                          icon: Icons.dark_mode_outlined,
+                          label: 'Dark',
+                          selected: currentMode == ThemeMode.dark,
+                          onTap: () => ref
+                              .read(themeModeProvider.notifier)
+                              .setThemeMode(ThemeMode.dark),
+                        ),
+                        const SizedBox(width: 10),
+                        _ThemeOption(
+                          icon: Icons.settings_suggest_outlined,
+                          label: 'System',
+                          selected: currentMode == ThemeMode.system,
+                          onTap: () => ref
+                              .read(themeModeProvider.notifier)
+                              .setThemeMode(ThemeMode.system),
+                        ),
+                      ],
+                    ),
+                    // NOTE: the old "Units" section (Weight kg/lb pills,
+                    // Water ml/L pills) that used to live here has been
+                    // removed on purpose. Units are now controlled
+                    // inline, right next to the fields they affect —
+                    // Target Weight, Log Today's Weight, and Weight
+                    // History all get a dropdown next to them on the
+                    // Goals screen; the water card below gets one next
+                    // to its total. Every one of those dropdowns reads
+                    // and writes the exact same weightUnitProvider /
+                    // waterUnitProvider as before, so there's still a
+                    // single source of truth for "what unit is this app
+                    // in right now" — it's just exposed where it's
+                    // actually used instead of buried in a separate
+                    // settings sheet, and a per-field toggle here would
+                    // have been a second, redundant control for the
+                    // same state.
+                    const SizedBox(height: 24),
+                    ListTile(
+                      leading: Icon(Icons.flag_outlined, color: colors.textSecondary),
+                      title: const Text('Goals & Targets'),
+                      onTap: () {
+                        Navigator.pop(sheetContext);
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (_) => const GoalsScreen()),
+                        );
+                      },
+                    ),
+                    ListTile(
+                      leading: Icon(Icons.favorite_border, color: colors.textSecondary),
+                      title: const Text('Connect Health Data'),
+                      subtitle: Text('Steps, sleep, heart rate & more',
+                          style: TextStyle(color: colors.textMuted, fontSize: 12)),
+                      onTap: () {
+                        Navigator.pop(sheetContext);
+                        context.push('/connect-health');
+                      },
+                    ),
+                    ListTile(
+                      leading: Icon(Icons.privacy_tip_outlined, color: colors.textSecondary),
+                      title: const Text('Privacy Policy'),
+                      onTap: () {
+                        Navigator.pop(sheetContext);
+                        LegalLinks.openPrivacyPolicy(context);
+                      },
+                    ),
+                    ListTile(
+                      leading: Icon(Icons.description_outlined, color: colors.textSecondary),
+                      title: const Text('Terms of Service'),
+                      onTap: () {
+                        Navigator.pop(sheetContext);
+                        LegalLinks.openTermsOfService(context);
+                      },
+                    ),
+                    ListTile(
+                      leading: const Icon(Icons.logout, color: Colors.red),
+                      title: const Text('Sign Out', style: TextStyle(color: Colors.red)),
+                      onTap: () async {
+                        Navigator.pop(sheetContext);
+                        try {
+                          await Supabase.instance.client.auth.signOut();
+                        } catch (_) {}
+                        if (context.mounted) context.go('/');
+                      },
+                    ),
+                    Divider(height: 24, color: colors.divider),
+                    ListTile(
+                      leading: const Icon(Icons.delete_forever_outlined, color: Colors.red),
+                      title: const Text('Delete Account', style: TextStyle(color: Colors.red)),
+                      subtitle: Text('Permanently erase your data',
+                          style: TextStyle(color: colors.textMuted, fontSize: 12)),
+                      onTap: () {
+                        Navigator.pop(sheetContext);
+                        context.push('/delete-account');
+                      },
                     ),
                   ],
-                );
-              },
+                ),
+              ),
             ),
-            // NOTE: the old "Units" section (Weight kg/lb pills, Water
-            // ml/L pills) that used to live here has been removed on
-            // purpose. Units are now controlled inline, right next to
-            // the fields they affect — Target Weight, Log Today's
-            // Weight, and Weight History all get a dropdown next to
-            // them on the Goals screen; the water card below gets one
-            // next to its total. Every one of those dropdowns reads and
-            // writes the exact same weightUnitProvider / waterUnitProvider
-            // as before, so there's still a single source of truth for
-            // "what unit is this app in right now" — it's just exposed
-            // where it's actually used instead of buried in a separate
-            // settings sheet, and a per-field toggle here would have
-            // been a second, redundant control for the same state.
-            const SizedBox(height: 24),
-            ListTile(
-              leading: Icon(Icons.flag_outlined, color: colors.textSecondary),
-              title: const Text('Goals & Targets'),
-              onTap: () {
-                Navigator.pop(sheetContext);
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (_) => const GoalsScreen()),
-                );
-              },
-            ),
-            ListTile(
-              leading: Icon(Icons.favorite_border, color: colors.textSecondary),
-              title: const Text('Connect Health Data'),
-              subtitle: Text('Steps, sleep, heart rate & more',
-                  style: TextStyle(color: colors.textMuted, fontSize: 12)),
-              onTap: () {
-                Navigator.pop(sheetContext);
-                context.push('/connect-health');
-              },
-            ),
-            ListTile(
-              leading: Icon(Icons.privacy_tip_outlined, color: colors.textSecondary),
-              title: const Text('Privacy Policy'),
-              onTap: () {
-                Navigator.pop(sheetContext);
-                LegalLinks.openPrivacyPolicy(context);
-              },
-            ),
-            ListTile(
-              leading: Icon(Icons.description_outlined, color: colors.textSecondary),
-              title: const Text('Terms of Service'),
-              onTap: () {
-                Navigator.pop(sheetContext);
-                LegalLinks.openTermsOfService(context);
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.logout, color: Colors.red),
-              title: const Text('Sign Out', style: TextStyle(color: Colors.red)),
-              onTap: () async {
-                Navigator.pop(sheetContext);
-                try {
-                  await Supabase.instance.client.auth.signOut();
-                } catch (_) {}
-                if (context.mounted) context.go('/');
-              },
-            ),
-            Divider(height: 24, color: colors.divider),
-            ListTile(
-              leading: const Icon(Icons.delete_forever_outlined, color: Colors.red),
-              title: const Text('Delete Account', style: TextStyle(color: Colors.red)),
-              subtitle: Text('Permanently erase your data',
-                  style: TextStyle(color: colors.textMuted, fontSize: 12)),
-              onTap: () {
-                Navigator.pop(sheetContext);
-                context.push('/delete-account');
-              },
-            ),
-          ],
-        ),
+          );
+        },
       ),
     );
   }
