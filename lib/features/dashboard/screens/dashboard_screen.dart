@@ -905,6 +905,10 @@ class _TipCard extends ConsumerWidget {
         return colors.carbs;
       case TipCategory.hydration:
         return colors.water;
+      case TipCategory.sleep:
+        return colors.dinner;
+      case TipCategory.activity:
+        return colors.protein;
       case TipCategory.general:
         return colors.textSecondary;
     }
@@ -918,6 +922,10 @@ class _TipCard extends ConsumerWidget {
         return Icons.restaurant_outlined;
       case TipCategory.hydration:
         return Icons.water_drop_outlined;
+      case TipCategory.sleep:
+        return Icons.bedtime_outlined;
+      case TipCategory.activity:
+        return Icons.directions_walk;
       case TipCategory.general:
         return Icons.lightbulb_outline;
     }
