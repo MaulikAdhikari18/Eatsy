@@ -9,6 +9,7 @@ import '../controllers/dashboard_controller.dart';
 import '../controllers/water_controller.dart';
 import '../controllers/tip_controller.dart';
 import '../controllers/weekly_trends_controller.dart';
+import '../controllers/health_summary_controller.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:go_router/go_router.dart';
 import '../../mealplan/screens/meal_plan_screen.dart';
@@ -311,6 +312,7 @@ class _HomeTab extends ConsumerWidget {
     final summaryAsync = ref.watch(dashboardSummaryProvider);
     final waterAsync = ref.watch(waterSummaryProvider);
     final trendsAsync = ref.watch(weeklyTrendsProvider);
+    final healthAsync = ref.watch(healthTodaySummaryProvider);
     final colors = context.appColors;
 
     return Scaffold(
@@ -489,6 +491,16 @@ class _HomeTab extends ConsumerWidget {
                 trendsAsync.when(
                   data: (summary) => _WeeklyTrendsCard(summary: summary),
                   loading: () => _WeeklyTrendsSkeleton(colors: colors),
+                  error: (_, __) => const SizedBox.shrink(),
+                ),
+
+                const SizedBox(height: 24),
+
+                healthAsync.when(
+                  data: (summary) => summary.hasData
+                      ? _HealthCard(summary: summary)
+                      : const _HealthConnectPromptCard(),
+                  loading: () => _HealthCardSkeleton(colors: colors),
                   error: (_, __) => const SizedBox.shrink(),
                 ),
               ],
@@ -1443,6 +1455,270 @@ class _WeeklyTrendsSkeleton extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       height: 280,
+      decoration: BoxDecoration(
+        color: colors.surface,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: colors.divider),
+      ),
+    );
+  }
+}
+
+String _formatSleepDuration(int minutes) {
+  final hours = minutes ~/ 60;
+  final mins = minutes % 60;
+  if (hours == 0) return '${mins}m';
+  if (mins == 0) return '${hours}h';
+  return '${hours}h ${mins}m';
+}
+
+String _formatWeightValue(double kg, WeightUnit unit) {
+  switch (unit) {
+    case WeightUnit.kg:
+      return '${kg.toStringAsFixed(1)} kg';
+    case WeightUnit.lb:
+      return '${UnitConverter.kgToLb(kg).toStringAsFixed(1)} lb';
+    case WeightUnit.stone:
+      return UnitConverter.kgToStoneLabel(kg);
+  }
+}
+
+class _HealthStatData {
+  final IconData icon;
+  final String label;
+  final String value;
+  const _HealthStatData({
+    required this.icon,
+    required this.label,
+    required this.value,
+  });
+}
+
+/// Today's synced steps / active calories / heart rate / sleep, plus
+/// weight as its own row below (kept separate since it's the one stat
+/// that needs to read weightUnitProvider to format consistently with
+/// the rest of the app — Goals screen, weight history, etc. — rather
+/// than always showing kg regardless of the person's preference).
+///
+/// Only ever shown when summary.hasData is true — see the .when() call
+/// site above, which shows _HealthConnectPromptCard instead otherwise.
+class _HealthCard extends StatelessWidget {
+  final HealthTodaySummary summary;
+  const _HealthCard({required this.summary});
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.appColors;
+
+    // Only include stats that actually have a value today — e.g. most
+    // people won't have a sleep reading if their watch didn't track it
+    // overnight, and showing a "—" placeholder for that would make the
+    // card look broken rather than just incomplete. Wrap below flows
+    // however many of these are actually present.
+    final stats = <_HealthStatData>[
+      if (summary.steps != null)
+        _HealthStatData(
+          icon: Icons.directions_walk,
+          label: 'STEPS',
+          value: NumberFormat('#,###').format(summary.steps!),
+        ),
+      if (summary.activeCalories != null)
+        _HealthStatData(
+          icon: Icons.local_fire_department,
+          label: 'ACTIVE CAL',
+          value: '${summary.activeCalories!.round()}',
+        ),
+      if (summary.heartRateAvg != null)
+        _HealthStatData(
+          icon: Icons.favorite,
+          label: 'HEART RATE',
+          value: '${summary.heartRateAvg!.round()} bpm',
+        ),
+      if (summary.sleepMinutes != null)
+        _HealthStatData(
+          icon: Icons.bedtime,
+          label: 'SLEEP',
+          value: _formatSleepDuration(summary.sleepMinutes!),
+        ),
+    ];
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: colors.surface,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: colors.divider),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.favorite_border, size: 15, color: colors.accent),
+              const SizedBox(width: 6),
+              Text(
+                'HEALTH',
+                style: AppFonts.mono(
+                  fontSize: 11,
+                  color: colors.accent,
+                  letterSpacing: 1,
+                ),
+              ),
+            ],
+          ),
+          if (stats.isNotEmpty) ...[
+            const SizedBox(height: 14),
+            Wrap(
+              spacing: 20,
+              runSpacing: 14,
+              children: stats
+                  .map((s) => SizedBox(
+                width: 84,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Icon(s.icon, size: 12, color: colors.textSecondary),
+                        const SizedBox(width: 4),
+                        Expanded(
+                          child: Text(
+                            s.label,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: AppFonts.mono(
+                              fontSize: 9,
+                              color: colors.textSecondary,
+                              letterSpacing: 0.3,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      s.value,
+                      style: AppFonts.mono(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w600,
+                        color: colors.textPrimary,
+                      ),
+                    ),
+                  ],
+                ),
+              ))
+                  .toList(),
+            ),
+          ],
+          if (summary.weightKg != null) ...[
+            const SizedBox(height: 14),
+            Divider(color: colors.divider, height: 1),
+            const SizedBox(height: 14),
+            Consumer(
+              builder: (context, ref, _) {
+                final unit = ref.watch(weightUnitProvider);
+                return Row(
+                  children: [
+                    Icon(Icons.monitor_weight_outlined,
+                        size: 14, color: colors.textSecondary),
+                    const SizedBox(width: 6),
+                    Text(
+                      'WEIGHT',
+                      style: AppFonts.mono(
+                        fontSize: 10,
+                        color: colors.textSecondary,
+                        letterSpacing: 0.5,
+                      ),
+                    ),
+                    const Spacer(),
+                    Text(
+                      _formatWeightValue(summary.weightKg!, unit),
+                      style: AppFonts.mono(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        color: colors.textPrimary,
+                      ),
+                    ),
+                  ],
+                );
+              },
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+/// Shown instead of _HealthCard when there's no synced data for today
+/// — whether that's because the person has never connected Apple
+/// Health/Health Connect, or connected but hasn't synced anything for
+/// today yet. Mirrors the same icon-chip + title/subtitle + chevron
+/// entry-point pattern already used for the Diet Preferences card on
+/// the Goals screen, rather than introducing a new visual pattern for
+/// what's functionally the same kind of "discover this feature" prompt.
+class _HealthConnectPromptCard extends StatelessWidget {
+  const _HealthConnectPromptCard();
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.appColors;
+    return GestureDetector(
+      onTap: () => context.push('/connect-health'),
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: colors.surface,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: colors.accent.withValues(alpha: 0.25)),
+        ),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: colors.accent.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Icon(Icons.favorite_border, color: colors.accent, size: 20),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Connect Health Data',
+                    style: TextStyle(
+                      fontWeight: FontWeight.w700,
+                      fontSize: 14,
+                      color: colors.textPrimary,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    'See your steps, sleep & heart rate here',
+                    style: TextStyle(fontSize: 12, color: colors.textSecondary),
+                  ),
+                ],
+              ),
+            ),
+            Icon(Icons.chevron_right, color: colors.textMuted),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _HealthCardSkeleton extends StatelessWidget {
+  final AppColors colors;
+  const _HealthCardSkeleton({required this.colors});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: 90,
       decoration: BoxDecoration(
         color: colors.surface,
         borderRadius: BorderRadius.circular(16),

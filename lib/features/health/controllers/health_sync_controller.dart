@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../core/services/health_service.dart';
 import '../../../core/utils/day_boundary.dart';
+import '../../dashboard/controllers/health_summary_controller.dart';
 
 enum HealthConnectionStatus {
   /// Not yet checked — the initial state before _checkStatus finishes.
@@ -26,11 +27,21 @@ class HealthSyncState {
   final bool isSyncing;
   final String? errorMessage;
 
+  /// How many days of data the most recent sync actually wrote — set
+  /// on every successful sync, including 0. Exists specifically so
+  /// "synced, but found nothing" is visibly distinct from "hasn't
+  /// synced yet" or "synced and found data" — without this, all three
+  /// looked identical from the UI's perspective (a fresh lastSyncedAt
+  /// with no other signal), which is exactly what made a genuinely
+  /// empty Health Connect look indistinguishable from a broken sync.
+  final int? daysSynced;
+
   const HealthSyncState({
     this.status = HealthConnectionStatus.unknown,
     this.lastSyncedAt,
     this.isSyncing = false,
     this.errorMessage,
+    this.daysSynced,
   });
 }
 
@@ -46,10 +57,11 @@ class HealthSyncState {
 /// means a sentinel-value hack. With only 4 fields, writing each
 /// transition out explicitly is simpler and has no ambiguity.
 class HealthSyncController extends StateNotifier<HealthSyncState> {
-  HealthSyncController() : super(const HealthSyncState()) {
+  HealthSyncController(this._ref) : super(const HealthSyncState()) {
     _checkStatus();
   }
 
+  final Ref _ref;
   final _supabase = Supabase.instance.client;
 
   /// How far back each sync looks. 30 days is enough for any
@@ -114,6 +126,7 @@ class HealthSyncController extends StateNotifier<HealthSyncState> {
     state = HealthSyncState(
       status: HealthConnectionStatus.notConnected,
       lastSyncedAt: state.lastSyncedAt,
+      daysSynced: state.daysSynced,
     );
   }
 
@@ -166,13 +179,20 @@ class HealthSyncController extends StateNotifier<HealthSyncState> {
         status: HealthConnectionStatus.connected,
         lastSyncedAt: DateTime.now(),
         isSyncing: false,
+        daysSynced: summaries.length,
       );
+      // Lets the Dashboard's health card pick up fresh data right away
+      // instead of only on the next cold start — same
+      // invalidate-after-write pattern DietPreferencesController
+      // already uses for dietPreferencesProvider.
+      _ref.invalidate(healthTodaySummaryProvider);
     } catch (e) {
       state = HealthSyncState(
         status: state.status,
         lastSyncedAt: state.lastSyncedAt,
         isSyncing: false,
         errorMessage: e.toString(),
+        daysSynced: state.daysSynced,
       );
     }
   }
@@ -185,4 +205,4 @@ class HealthSyncController extends StateNotifier<HealthSyncState> {
 
 final healthSyncControllerProvider =
 StateNotifierProvider<HealthSyncController, HealthSyncState>(
-        (ref) => HealthSyncController());
+        (ref) => HealthSyncController(ref));

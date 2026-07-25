@@ -224,9 +224,17 @@ class ConnectHealthScreen extends ConsumerWidget {
                         Text(
                           syncState.lastSyncedAt == null
                               ? 'Not synced yet'
-                              : 'Last synced ${_formatRelativeTime(syncState.lastSyncedAt!)}',
+                              : 'Last synced ${_formatRelativeTime(syncState.lastSyncedAt!)}'
+                              '${syncState.daysSynced != null ? ' · ${syncState.daysSynced} day${syncState.daysSynced == 1 ? '' : 's'} of data' : ''}',
                           style: TextStyle(color: colors.textSecondary, fontSize: 12),
                         ),
+                        if (syncState.daysSynced == 0) ...[
+                          const SizedBox(height: 6),
+                          Text(
+                            'No data found in $_platformName for the last 30 days. Make sure another app (like your phone\'s step counter, or a fitness app) is actually writing steps/sleep/etc. into it — Eatsy only reads what\'s already there.',
+                            style: TextStyle(color: colors.textMuted, fontSize: 11, height: 1.4),
+                          ),
+                        ],
                       ],
                     ),
                   ),
