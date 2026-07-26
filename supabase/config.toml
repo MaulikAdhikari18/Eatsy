@@ -29,3 +29,13 @@ enabled = true
 verify_jwt = true
 import_map = "./functions/delete-account/deno.json"
 entrypoint = "./functions/delete-account/index.ts"
+
+[functions.usda-proxy]
+enabled = true
+# true — USDA_API_KEY isn't billing-linked the way Groq's is (it's
+# free, rate-limit-only), but USDA's own key-usage policy still says
+# not to expose it publicly, and requiring a real logged-in user costs
+# nothing extra to set up given this mirrors groq-proxy directly.
+verify_jwt = true
+import_map = "./functions/usda-proxy/deno.json"
+entrypoint = "./functions/usda-proxy/index.ts"

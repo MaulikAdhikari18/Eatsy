@@ -1,13 +1,28 @@
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 /// Replaces FatSecret as the backend for food search and barcode
 /// lookup. Open Food Facts needs no API key, no OAuth token, and — the
 /// actual reason for this swap — no IP whitelisting, so calls can be
 /// made directly from the Flutter app. No Supabase Edge Function proxy
-/// is needed for these two features anymore (unlike FatSecret, which
+/// is needed for Open Food Facts specifically (unlike FatSecret, which
 /// required one to keep its OAuth client secret off the client and to
 /// obtain a server-side access token).
+///
+/// Search is two-tier: Open Food Facts first, USDA FoodData Central
+/// second, then the hardcoded local list as a final safety net. Open
+/// Food Facts is a barcode/packaged-product database — it has strong
+/// coverage for branded, scannable items but essentially none for
+/// generic home-cooked dishes ("omelette," "fried rice") since those
+/// have no barcode for anyone to have scanned. USDA FDC's Survey
+/// (FNDDS) data specifically covers foods *as eaten* — composite,
+/// prepared dishes — which is exactly the gap Open Food Facts leaves.
+/// USDA calls go through the usda-proxy Edge Function rather than
+/// directly from the client, the same reasoning as groq-proxy: keep
+/// the API key server-side rather than shipped inside the compiled
+/// app, even though this specific key is free and only rate-limits
+/// rather than bills.
 ///
 /// Photo-based food recognition (`recognizeFood`) is deliberately left
 /// as a stub, same as before — that's being handled separately via
@@ -23,6 +38,8 @@ class FoodDataService {
   static const String _baseUrl = 'https://world.openfoodfacts.org';
   static const String _userAgent =
       'Eatsy-Flutter-App/1.0 (https://github.com/MaulikAdhikari18/Eatsy)';
+  static const String _usdaProxyUrl =
+      'https://ghobobiocpjfiwcrrfbr.supabase.co/functions/v1/usda-proxy';
 
   Options get _options => Options(
     headers: {'User-Agent': _userAgent},
@@ -39,8 +56,21 @@ class FoodDataService {
   /// but as of writing this is the endpoint that's actually documented
   /// and confirmed working for plain keyword search like FatSecret's
   /// foods.search did.
+  ///
+  /// Open Food Facts caps search specifically at 10 requests/minute per
+  /// IP and explicitly warns against using it for search-as-you-type —
+  /// _onSearchChanged's 500ms debounce (food_log_screen.dart) helps,
+  /// but an active back-and-forth search session can still burn through
+  /// that budget. _searchCache below exists specifically to avoid
+  /// re-hitting the network for a query already fetched this session.
   Future<List<Map<String, dynamic>>> searchFood(String query) async {
     if (query.isEmpty) return [];
+    final cacheKey = query.trim().toLowerCase();
+    final cached = _searchCache[cacheKey];
+    if (cached != null) return cached;
+
+    List<Map<String, dynamic>> results = [];
+
     try {
       final response = await _dio.get(
         '$_baseUrl/cgi/search.pl',
@@ -49,7 +79,7 @@ class FoodDataService {
           'search_simple': 1,
           'action': 'process',
           'json': 1,
-          'page_size': 20,
+          'page_size': 50,
           'lc': 'en',
           'fields': 'product_name,product_name_en,nutriments,serving_size,brands',
         },
@@ -57,32 +87,154 @@ class FoodDataService {
       );
 
       final products = response.data['products'] as List?;
-      if (products == null || products.isEmpty) return _localSearch(query);
-
-      final q = query.toLowerCase();
-      final results = products
-      // requireEnglishName: true — search has many candidate
-      // products, so it can afford to just skip any that don't
-      // have an English name entered yet rather than show one in
-      // Spanish/French/etc.
-          .map((p) => _mapProduct(p as Map<String, dynamic>, requireEnglishName: true))
-          .whereType<Map<String, dynamic>>()
-      // The legacy search endpoint does loose/fuzzy matching, not
-      // real relevance ranking — it can return products that don't
-      // actually contain the search term at all (e.g. "salmon"
-      // matching Spanish products containing "sal", the word for
-      // salt, as a substring). Enforcing a real match on the
-      // (now English) product name client-side is the only
-      // reliable way to keep results actually relevant.
-          .where((f) => f['food_name'].toString().toLowerCase().contains(q))
-          .toList();
-
-      return results.isEmpty ? _localSearch(query) : results;
+      if (products != null && products.isNotEmpty) {
+        final q = query.toLowerCase();
+        results = products
+            .map((p) => _mapProduct(p as Map<String, dynamic>))
+            .whereType<Map<String, dynamic>>()
+        // The legacy search endpoint does loose/fuzzy matching, not
+        // real relevance ranking — it can return products that don't
+        // actually contain the search term at all (e.g. "salmon"
+        // matching Spanish products containing "sal", the word for
+        // salt, as a substring). Enforcing a real match on the
+        // resolved display name client-side is the only reliable way
+        // to keep results actually relevant. Matching against
+        // whichever name _mapProduct actually resolved to (English if
+        // available, otherwise the original) rather than requiring the
+        // English name specifically — a non-English product whose
+        // original name matches the query is still a real, relevant
+        // result and shouldn't be discarded just for lacking an
+        // English translation, which Open Food Facts' contributor
+        // coverage is inconsistent about outside a few markets.
+            .where((f) => f['food_name'].toString().toLowerCase().contains(q))
+            .toList();
+      }
     } catch (e) {
       debugPrint('❌ Open Food Facts search error: $e');
-      return _localSearch(query);
     }
+
+    // Open Food Facts is a packaged-product database — it has close to
+    // zero coverage of generic home-cooked dishes ("omelette," "fried
+    // rice") since those were never scanned off any packaging. USDA's
+    // Survey (FNDDS) data specifically covers foods *as eaten*, which
+    // is exactly that gap. Only tried when OFF came back empty, to
+    // avoid burning an extra request (and USDA's own rate limit) on
+    // every search when OFF already had a good answer.
+    if (results.isEmpty) {
+      try {
+        results = await _searchUsda(query);
+      } catch (e) {
+        debugPrint('❌ USDA search error: $e');
+      }
+    }
+
+    if (results.isEmpty) return _localSearch(query);
+
+    // Only successful, real network results are cached — a query that
+    // failed everywhere (network error, both APIs rate-limited) is
+    // deliberately left uncached so a later retry this same session can
+    // still succeed once whatever caused the failure clears, rather
+    // than being permanently stuck on the local fallback for the rest
+    // of the session.
+    _searchCache[cacheKey] = results;
+    return results;
   }
+
+  /// Calls USDA FoodData Central through the usda-proxy Edge Function
+  /// — see the class doc comment for why this goes through a proxy
+  /// rather than hitting USDA directly the way Open Food Facts calls
+  /// do. Returns [] (never throws past this point) on any failure, so
+  /// callers can treat "USDA had nothing" and "USDA errored" the same
+  /// way: fall through to the local list.
+  Future<List<Map<String, dynamic>>> _searchUsda(String query) async {
+    final session = Supabase.instance.client.auth.currentSession;
+    if (session == null) return [];
+
+    final response = await _dio.post(
+      _usdaProxyUrl,
+      options: Options(
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer ${session.accessToken}',
+        },
+        validateStatus: (status) => true,
+      ),
+      data: {'query': query},
+    );
+
+    if (response.statusCode != 200) return [];
+
+    final foods = response.data['foods'] as List?;
+    if (foods == null || foods.isEmpty) return [];
+
+    final q = query.toLowerCase();
+    return foods
+        .map((f) => _mapUsdaFood(f as Map<String, dynamic>))
+        .whereType<Map<String, dynamic>>()
+        .where((f) => f['food_name'].toString().toLowerCase().contains(q))
+        .toList();
+  }
+
+  // USDA's legacy nutrient numbers (stable since long before FoodData
+  // Central existed — this is the original USDA Standard Reference
+  // numbering, not something that changes between API versions).
+  // Deliberately using nutrientNumber (a string like "208"), not
+  // nutrientId — the /foods/search endpoint's inline foodNutrients
+  // entries use a genuinely different, flatter shape than the
+  // /food/{fdcId} detail endpoint's nested one (confirmed against a
+  // real example response; this inconsistency is USDA's own, not a
+  // guess), and nutrientNumber is the field that shape actually has.
+  static const _usdaEnergyNumber = '208';
+  static const _usdaProteinNumber = '203';
+  static const _usdaFatNumber = '204';
+  static const _usdaCarbsNumber = '205';
+
+  /// Maps one entry from USDA's /foods/search response to Eatsy's
+  /// internal shape. All USDA foodNutrients values are per 100g
+  /// regardless of data type (Foundation/SR Legacy/Survey), so results
+  /// get the same "(per 100g)" honesty suffix Open Food Facts' per-100g
+  /// fallback path already uses — never claiming a serving-size
+  /// quantity USDA didn't actually provide.
+  Map<String, dynamic>? _mapUsdaFood(Map<String, dynamic> food) {
+    final name = food['description']?.toString();
+    if (name == null || name.isEmpty) return null;
+
+    final nutrients = food['foodNutrients'] as List?;
+    if (nutrients == null) return null;
+
+    double? findNutrient(String number) {
+      for (final n in nutrients) {
+        final entry = n as Map<String, dynamic>;
+        if (entry['nutrientNumber']?.toString() == number) {
+          final value = entry['value'];
+          return value is num ? value.toDouble() : null;
+        }
+      }
+      return null;
+    }
+
+    final calories = findNutrient(_usdaEnergyNumber);
+    // No usable calorie figure — same principle as _mapProduct: treat
+    // as not found rather than showing a fake 0, which would look like
+    // a real "this food has zero calories" answer.
+    if (calories == null) return null;
+
+    return {
+      'food_name': '$name (per 100g)',
+      'calories': calories,
+      'protein': findNutrient(_usdaProteinNumber) ?? 0,
+      'carbs': findNutrient(_usdaCarbsNumber) ?? 0,
+      'fat': findNutrient(_usdaFatNumber) ?? 0,
+      'base_grams': 100.0,
+    };
+  }
+
+  // Session-only cache (cleared on app restart, since foodDataService
+  // is a top-level singleton) — small map objects, no eviction/TTL
+  // needed for what this is actually solving (avoiding redundant calls
+  // within one active search session against rate limits), not meant
+  // to be a long-lived or cross-session cache.
+  final Map<String, List<Map<String, dynamic>>> _searchCache = {};
 
   /// Barcode lookup — one call returns full product + nutrition data,
   /// unlike FatSecret's two-step find-id-then-get-details flow, so
@@ -108,8 +260,7 @@ class FoodDataService {
       // means the barcode isn't in the database.
       if (response.data['status'] != 1) return null;
 
-      return _mapProduct(response.data['product'] as Map<String, dynamic>,
-          requireEnglishName: false);
+      return _mapProduct(response.data['product'] as Map<String, dynamic>);
     } catch (e) {
       debugPrint('❌ Barcode error: $e');
       return null;
@@ -128,16 +279,16 @@ class FoodDataService {
   /// Name resolution: Open Food Facts stores a generic `product_name`
   /// (whatever language the contributor typed it in) alongside
   /// optional per-language fields like `product_name_en`. This always
-  /// prefers the English field when present.
-  /// - requireEnglishName: true (search) — if there's no English name,
-  ///   the product is dropped entirely. Search has many candidates, so
-  ///   skipping an untranslated one just means a different result takes
-  ///   its place instead of showing Spanish/French/etc.
-  /// - requireEnglishName: false (barcode) — falls back to the generic
-  ///   name if no English one exists, since a barcode scan has exactly
-  ///   one product and no alternative to substitute; showing *a* name
-  ///   is better than showing nothing for a product that's otherwise a
-  ///   perfectly valid, confirmed match.
+  /// prefers the English field when present, and falls back to the
+  /// generic name otherwise — showing *a* real name, even in another
+  /// language, is more useful than showing nothing. Search used to drop
+  /// non-English-named products entirely on the reasoning that there
+  /// were usually enough other English-named candidates to take their
+  /// place; in practice, for markets Open Food Facts' contributors
+  /// haven't translated as heavily, that discarded real, relevant
+  /// results rather than truly-irrelevant ones — the search results
+  /// filter below (matching against whichever name actually got
+  /// resolved here) still keeps things relevant either way.
   ///
   /// Nutrient data is fundamentally "per 100g" unless a product also
   /// has a known serving_size *and* matching _serving nutrient fields.
@@ -146,10 +297,7 @@ class FoodDataService {
   /// actually has it, and otherwise falls back to per-100g with
   /// "(per 100g)" appended to the name — so what quantity the numbers
   /// refer to is never ambiguous to whoever's logging it.
-  Map<String, dynamic>? _mapProduct(
-      Map<String, dynamic> product, {
-        required bool requireEnglishName,
-      }) {
+  Map<String, dynamic>? _mapProduct(Map<String, dynamic> product) {
     final nutriments = product['nutriments'] as Map<String, dynamic>?;
     if (nutriments == null) return null;
 
@@ -159,9 +307,7 @@ class FoodDataService {
     String? name;
     if (englishName != null && englishName.isNotEmpty) {
       name = englishName;
-    } else if (!requireEnglishName &&
-        genericName != null &&
-        genericName.isNotEmpty) {
+    } else if (genericName != null && genericName.isNotEmpty) {
       name = genericName;
     }
     if (name == null) return null;
@@ -272,6 +418,20 @@ class FoodDataService {
       {'food_name': 'Protein Shake', 'calories': 120.0, 'protein': 24.0, 'carbs': 3.0, 'fat': 1.5, 'base_grams': 300.0},
       {'food_name': 'Almonds (28g)', 'calories': 164.0, 'protein': 6.0, 'carbs': 6.0, 'fat': 14.0, 'base_grams': 28.0},
       {'food_name': 'Masala Chai (1 cup)', 'calories': 60.0, 'protein': 2.0, 'carbs': 8.0, 'fat': 2.0, 'base_grams': 240.0},
+      // Hong Kong / Cantonese — same honesty caveat as the rest of
+      // this list: typical-serving approximations, not measured values.
+      {'food_name': 'Char Siu Rice (BBQ Pork Rice)', 'calories': 550.0, 'protein': 25.0, 'carbs': 70.0, 'fat': 18.0, 'base_grams': 350.0},
+      {'food_name': 'Wonton Noodle Soup', 'calories': 380.0, 'protein': 18.0, 'carbs': 50.0, 'fat': 10.0, 'base_grams': 400.0},
+      {'food_name': 'Congee (Plain Rice Porridge)', 'calories': 150.0, 'protein': 3.0, 'carbs': 32.0, 'fat': 0.5, 'base_grams': 300.0},
+      {'food_name': 'Hong Kong Milk Tea', 'calories': 120.0, 'protein': 3.0, 'carbs': 18.0, 'fat': 4.0, 'base_grams': 240.0},
+      {'food_name': 'Egg Tart (1 piece)', 'calories': 200.0, 'protein': 4.0, 'carbs': 20.0, 'fat': 12.0, 'base_grams': 70.0},
+      {'food_name': 'Har Gow / Shrimp Dumplings (4 pieces)', 'calories': 140.0, 'protein': 8.0, 'carbs': 16.0, 'fat': 4.0, 'base_grams': 100.0},
+      {'food_name': 'Siu Mai / Pork Dumplings (4 pieces)', 'calories': 180.0, 'protein': 9.0, 'carbs': 12.0, 'fat': 10.0, 'base_grams': 100.0},
+      {'food_name': 'Fish Balls (skewer)', 'calories': 150.0, 'protein': 12.0, 'carbs': 10.0, 'fat': 6.0, 'base_grams': 100.0},
+      {'food_name': 'Roast Duck Rice', 'calories': 600.0, 'protein': 28.0, 'carbs': 68.0, 'fat': 22.0, 'base_grams': 350.0},
+      {'food_name': 'Beef Brisket Noodles', 'calories': 450.0, 'protein': 25.0, 'carbs': 55.0, 'fat': 14.0, 'base_grams': 450.0},
+      {'food_name': 'Pineapple Bun (Bo Lo Bao)', 'calories': 340.0, 'protein': 7.0, 'carbs': 45.0, 'fat': 15.0, 'base_grams': 90.0},
+      {'food_name': 'Egg Waffle (Gai Daan Jai)', 'calories': 380.0, 'protein': 8.0, 'carbs': 55.0, 'fat': 14.0, 'base_grams': 150.0},
     ];
 
     final q = query.toLowerCase();
