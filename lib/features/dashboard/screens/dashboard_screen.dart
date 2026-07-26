@@ -743,6 +743,8 @@ class _WaterCard extends ConsumerWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          BarcodeStrip(color: colors.water, height: 10),
+          const SizedBox(height: 12),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
@@ -1560,6 +1562,8 @@ class _HealthCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          BarcodeStrip(color: colors.accent, height: 10),
+          const SizedBox(height: 12),
           Row(
             children: [
               Icon(Icons.favorite_border, size: 15, color: colors.accent),

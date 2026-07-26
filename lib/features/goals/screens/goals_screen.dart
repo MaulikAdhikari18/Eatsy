@@ -11,6 +11,7 @@ import '../../../core/settings/unit_preferences_provider.dart';
 import '../../../core/utils/unit_converter.dart';
 import '../../../shared/widgets/unit_dropdown.dart';
 import '../../../core/utils/day_boundary.dart';
+import '../../../shared/widgets/receipt_decorations.dart';
 
 // Every color below comes from context.appColors (colors.*), same as
 // Dashboard / Scan / Food Log / Barcode. AppTheme is only imported for
@@ -741,6 +742,8 @@ class _GoalsScreenState extends ConsumerState<GoalsScreen> {
               ),
               child: Column(
                 children: [
+                  BarcodeStrip(color: colors.accent, height: 10),
+                  const SizedBox(height: 14),
                   _GoalField(
                     label: '🔥 Daily Calories',
                     controller: _calorieController,
@@ -785,17 +788,23 @@ class _GoalsScreenState extends ConsumerState<GoalsScreen> {
                 color: colors.surface,
                 borderRadius: BorderRadius.circular(16),
               ),
-              child: _GoalField(
-                label: '🎯 Target Weight',
-                controller: _weightGoalController,
-                unit: '',
-                accentColor: colors.carbs,
-                unitControl: UnitDropdown<WeightUnit>(
-                  value: weightUnit,
-                  options: weightUnitOptions,
-                  color: colors.carbs,
-                  onChanged: (u) => ref.read(weightUnitProvider.notifier).setUnit(u),
-                ),
+              child: Column(
+                children: [
+                  BarcodeStrip(color: colors.carbs, height: 10),
+                  const SizedBox(height: 14),
+                  _GoalField(
+                    label: '🎯 Target Weight',
+                    controller: _weightGoalController,
+                    unit: '',
+                    accentColor: colors.carbs,
+                    unitControl: UnitDropdown<WeightUnit>(
+                      value: weightUnit,
+                      options: weightUnitOptions,
+                      color: colors.carbs,
+                      onChanged: (u) => ref.read(weightUnitProvider.notifier).setUnit(u),
+                    ),
+                  ),
+                ],
               ),
             ),
             if (weightUnit == WeightUnit.stone) ...[
@@ -831,17 +840,23 @@ class _GoalsScreenState extends ConsumerState<GoalsScreen> {
                 color: colors.surface,
                 borderRadius: BorderRadius.circular(16),
               ),
-              child: _GoalField(
-                label: '💧 Target Water',
-                controller: _waterGoalController,
-                unit: '',
-                accentColor: colors.water,
-                unitControl: UnitDropdown<WaterUnit>(
-                  value: waterUnit,
-                  options: waterUnitOptions,
-                  color: colors.water,
-                  onChanged: (u) => ref.read(waterUnitProvider.notifier).setUnit(u),
-                ),
+              child: Column(
+                children: [
+                  BarcodeStrip(color: colors.water, height: 10),
+                  const SizedBox(height: 14),
+                  _GoalField(
+                    label: '💧 Target Water',
+                    controller: _waterGoalController,
+                    unit: '',
+                    accentColor: colors.water,
+                    unitControl: UnitDropdown<WaterUnit>(
+                      value: waterUnit,
+                      options: waterUnitOptions,
+                      color: colors.water,
+                      onChanged: (u) => ref.read(waterUnitProvider.notifier).setUnit(u),
+                    ),
+                  ),
+                ],
               ),
             ),
 
@@ -1039,10 +1054,13 @@ class _GoalField extends StatelessWidget {
   Widget build(BuildContext context) {
     final colors = context.appColors;
     return Row(
+      crossAxisAlignment: CrossAxisAlignment.end,
       children: [
-        Expanded(
+        Flexible(
           child: Text(
             label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
             style: TextStyle(
               fontWeight: FontWeight.w600,
               fontSize: 14,
@@ -1050,6 +1068,30 @@ class _GoalField extends StatelessWidget {
             ),
           ),
         ),
+        const SizedBox(width: 6),
+        // Same dotted-leader visual as DottedLeaderRow (Food Log, Meal
+        // Plan) — but this stays a spacer, not a Text, since the value
+        // slot to its right is a real editable TextField, not static
+        // text. Keeps the receipt-line look without losing the ability
+        // to actually edit your targets.
+        Expanded(
+          child: Padding(
+            padding: const EdgeInsets.only(bottom: 6),
+            child: Text(
+              '.' * 200,
+              maxLines: 1,
+              softWrap: false,
+              overflow: TextOverflow.clip,
+              style: TextStyle(
+                color: colors.divider,
+                letterSpacing: 2,
+                fontWeight: FontWeight.w700,
+                height: 1,
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(width: 6),
         SizedBox(
           width: unitControl != null ? 70 : 80,
           child: TextField(
