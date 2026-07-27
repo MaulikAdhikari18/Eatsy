@@ -722,24 +722,31 @@ Rules:
                           color: colors.labelCard,
                           borderRadius: BorderRadius.circular(14),
                         ),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const Text(
-                              'Total for today',
-                              style: TextStyle(
-                                color: Colors.white70,
-                                fontSize: 13,
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                            Text(
-                              '$totalCals kcal',
-                              style: AppFonts.mono(
-                                fontSize: 16,
-                                fontWeight: FontWeight.w600,
-                                color: colors.accent,
-                              ),
+                            BarcodeStrip(color: colors.accent, height: 8),
+                            const SizedBox(height: 12),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                const Text(
+                                  'Total for today',
+                                  style: TextStyle(
+                                    color: Colors.white70,
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                                Text(
+                                  '$totalCals kcal',
+                                  style: AppFonts.mono(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w600,
+                                    color: colors.accent,
+                                  ),
+                                ),
+                              ],
                             ),
                           ],
                         ),

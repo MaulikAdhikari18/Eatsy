@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import '../controllers/auth_controller.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../shared/widgets/receipt_decorations.dart';
 
 /// Reached from Dashboard's profile menu. Deliberately its own screen
 /// rather than a dialog — this is a store-required, irreversible,
@@ -107,6 +108,8 @@ class _DeleteAccountScreenState extends ConsumerState<DeleteAccountScreen> {
                 child: const Icon(Icons.warning_amber_rounded,
                     size: 32, color: Colors.red),
               ),
+              const SizedBox(height: 14),
+              BarcodeStrip(color: Colors.red.withValues(alpha: 0.6), height: 8),
               const SizedBox(height: 20),
 
               Text(

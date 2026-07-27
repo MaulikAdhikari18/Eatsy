@@ -951,46 +951,53 @@ class _TipCard extends ConsumerWidget {
             borderRadius: BorderRadius.circular(16),
             border: Border.all(color: color.withValues(alpha: 0.3)),
           ),
-          child: Row(
+          child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: color.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: Icon(_iconFor(tip.category), size: 18, color: color),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'TIP OF THE DAY',
-                      style: AppFonts.mono(
-                        fontSize: 10,
-                        color: color,
-                        letterSpacing: 1,
-                      ),
+              BarcodeStrip(color: color, height: 10),
+              const SizedBox(height: 12),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: color.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(10),
                     ),
-                    const SizedBox(height: 6),
-                    Text(
-                      tip.message,
-                      style: TextStyle(
-                        fontSize: 13,
-                        color: colors.textPrimary,
-                        height: 1.4,
-                      ),
+                    child: Icon(_iconFor(tip.category), size: 18, color: color),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'TIP OF THE DAY',
+                          style: AppFonts.mono(
+                            fontSize: 10,
+                            color: color,
+                            letterSpacing: 1,
+                          ),
+                        ),
+                        const SizedBox(height: 6),
+                        Text(
+                          tip.message,
+                          style: TextStyle(
+                            fontSize: 13,
+                            color: colors.textPrimary,
+                            height: 1.4,
+                          ),
+                        ),
+                      ],
                     ),
-                  ],
-                ),
-              ),
-              const SizedBox(width: 8),
-              GestureDetector(
-                onTap: () => ref.read(tipDismissedProvider.notifier).state = true,
-                child: Icon(Icons.close, size: 16, color: colors.textMuted),
+                  ),
+                  const SizedBox(width: 8),
+                  GestureDetector(
+                    onTap: () => ref.read(tipDismissedProvider.notifier).state = true,
+                    child: Icon(Icons.close, size: 16, color: colors.textMuted),
+                  ),
+                ],
               ),
             ],
           ),

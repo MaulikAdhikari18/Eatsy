@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../controllers/health_sync_controller.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../shared/widgets/receipt_decorations.dart';
 
 class ConnectHealthScreen extends ConsumerWidget {
   const ConnectHealthScreen({super.key});
@@ -69,6 +70,8 @@ class ConnectHealthScreen extends ConsumerWidget {
                 child: Icon(Icons.favorite_rounded,
                     size: 30, color: colors.accent),
               ),
+              const SizedBox(height: 14),
+              BarcodeStrip(color: colors.accent, height: 8),
               const SizedBox(height: 20),
 
               Text(
