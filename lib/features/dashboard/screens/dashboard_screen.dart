@@ -23,6 +23,7 @@ import '../../../core/utils/legal_links.dart';
 import '../../../shared/widgets/dotted_leader_row.dart';
 import '../../../shared/widgets/receipt_decorations.dart';
 import '../../../shared/widgets/unit_dropdown.dart';
+import '../../../shared/widgets/app_drawer.dart';
 
 class DashboardScreen extends ConsumerStatefulWidget {
   const DashboardScreen({super.key});
@@ -317,6 +318,7 @@ class _HomeTab extends ConsumerWidget {
 
     return Scaffold(
       backgroundColor: colors.background,
+      drawer: const AppDrawer(),
       body: SafeArea(
         child: RefreshIndicator(
           color: colors.accent,
@@ -334,25 +336,51 @@ class _HomeTab extends ConsumerWidget {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+                    Row(
                       children: [
-                        Text(
-                          today,
-                          style: AppFonts.mono(
-                            fontSize: 11,
-                            color: colors.textSecondary,
-                            letterSpacing: 1,
+                        // Builder gives this onTap a context that's an
+                        // actual DESCENDANT of the Scaffold above —
+                        // using _HomeTab.build's own `context` directly
+                        // wouldn't work here, since that context is the
+                        // Scaffold's PARENT, not a descendant of it, and
+                        // Scaffold.of() only searches upward from
+                        // wherever it's called.
+                        Builder(
+                          builder: (drawerContext) => GestureDetector(
+                            onTap: () => Scaffold.of(drawerContext).openDrawer(),
+                            child: Container(
+                              width: 38,
+                              height: 38,
+                              decoration: BoxDecoration(
+                                color: colors.surfaceVariant,
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              child: Icon(Icons.menu, color: colors.textPrimary, size: 20),
+                            ),
                           ),
                         ),
-                        const SizedBox(height: 2),
-                        Text(
-                          'Hey there',
-                          style: TextStyle(
-                            fontSize: 24,
-                            fontWeight: FontWeight.w700,
-                            color: colors.textPrimary,
-                          ),
+                        const SizedBox(width: 12),
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              today,
+                              style: AppFonts.mono(
+                                fontSize: 11,
+                                color: colors.textSecondary,
+                                letterSpacing: 1,
+                              ),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              'Hey there',
+                              style: TextStyle(
+                                fontSize: 24,
+                                fontWeight: FontWeight.w700,
+                                color: colors.textPrimary,
+                              ),
+                            ),
+                          ],
                         ),
                       ],
                     ),

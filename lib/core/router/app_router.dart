@@ -13,6 +13,7 @@ import '../../features/dashboard/screens/dashboard_screen.dart';
 import '../../features/preferences/screens/diet_preferences_screen.dart';
 import '../../features/health/screens/connect_health_screen.dart';
 import '../../features/help/screens/help_screen.dart';
+import '../../features/chatbot/screens/chatbot_screen.dart';
 import '../theme/app_colors.dart';
 
 
@@ -64,10 +65,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         path: '/help',
         builder: (context, state) => const HelpScreen(),
       ),
-      // /chatbot is deliberately not added yet — ChatbotScreen doesn't
-      // exist as of this commit (see app_drawer.dart, which already
-      // has a Chatbot button pointing here — it'll 404 at runtime via
-      // go_router until that screen lands in the next phase).
+      GoRoute(
+        path: '/chatbot',
+        builder: (context, state) => const ChatbotScreen(),
+      ),
     ],
   );
 

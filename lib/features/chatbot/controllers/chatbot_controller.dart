@@ -1,260 +1,202 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:dio/dio.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../../core/utils/day_boundary.dart';
 
-/// A single message in the chat thread. `role` is either 'user' or
-/// 'assistant' — matches the shape Groq's chat-completions API expects,
-/// so the whole history can be forwarded as-is.
 class ChatMessage {
-  final String role;
+  final String role; // 'user' or 'assistant'
   final String content;
-  final DateTime timestamp;
-
-  ChatMessage({
-    required this.role,
-    required this.content,
-    DateTime? timestamp,
-  }) : timestamp = timestamp ?? DateTime.now();
+  const ChatMessage({required this.role, required this.content});
 }
 
-class ChatbotState {
+class ChatState {
   final List<ChatMessage> messages;
   final bool isSending;
-  final String? error;
+  final String? errorMessage;
 
-  const ChatbotState({
+  const ChatState({
     this.messages = const [],
     this.isSending = false,
-    this.error,
+    this.errorMessage,
   });
-
-  ChatbotState copyWith({
-    List<ChatMessage>? messages,
-    bool? isSending,
-    String? error,
-  }) {
-    return ChatbotState(
-      messages: messages ?? this.messages,
-      isSending: isSending ?? this.isSending,
-      error: error,
-    );
-  }
 }
 
-final chatbotControllerProvider =
-StateNotifierProvider<ChatbotController, ChatbotState>((ref) {
-  return ChatbotController();
-});
-
-class ChatbotController extends StateNotifier<ChatbotState> {
-  ChatbotController() : super(const ChatbotState()) {
-    _seedGreeting();
-  }
+/// The in-app chatbot — answers questions about how to use Eatsy, and
+/// (per explicit product decision) questions about the person's own
+/// data: goals, diet preferences, what they've logged today.
+///
+/// Chat history is session-only, not persisted to Supabase — same
+/// deliberate scoping as tipDismissedProvider's dismissed state:
+/// there's no backing table, and a fresh conversation each time you
+/// open the chatbot is a reasonable, much simpler v1 than building
+/// message persistence for what's fundamentally a help/support
+/// surface, not a saved conversation history feature.
+///
+/// Reuses groq-proxy rather than a separate chatbot-specific Edge
+/// Function — it's already a generic {model, max_tokens, messages}
+/// pass-through with no meal-plan-specific logic in it (confirmed by
+/// reading its actual implementation), so a second near-identical
+/// proxy would just be duplication for no benefit.
+class ChatbotController extends StateNotifier<ChatState> {
+  ChatbotController() : super(const ChatState());
 
   final _supabase = Supabase.instance.client;
-  final _dio = Dio();
 
-  // Reuses the same Groq proxy the meal planner talks to — it's a
-  // generic authenticated passthrough (see
-  // supabase/functions/groq-proxy/index.ts), not meal-plan-specific,
-  // so there's no need for a second identical function just for the
-  // chatbot's calls.
-  static const String _groqProxyUrl =
+  static const _proxyUrl =
       'https://ghobobiocpjfiwcrrfbr.supabase.co/functions/v1/groq-proxy';
 
-  void _seedGreeting() {
-    state = state.copyWith(messages: [
-      ChatMessage(
-        role: 'assistant',
-        content:
-        "Hi! I'm your Eatsy assistant. Ask me anything about the app — "
-            "how to log food, scan barcodes, set goals — or about your "
-            "own progress today, like how many calories you have left.",
-      ),
-    ]);
-  }
-
-  /// Same auth pattern as meal_plan_screen.dart's _groqAuthOptions(): the
-  /// proxy requires the user's real session token, not the anon key.
-  Options _groqAuthOptions() {
-    final session = _supabase.auth.currentSession;
-    if (session == null) {
-      throw Exception('Not signed in — please log in again.');
-    }
-    return Options(
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer ${session.accessToken}',
-      },
-      validateStatus: (status) => true,
-    );
-  }
-
-  /// Pulls together a compact snapshot of the user's goals, today's
-  /// logged meals, and diet preferences so the assistant can answer
-  /// personal questions ("how many calories do I have left today?")
-  /// without needing tool-calling. Kept intentionally short — this gets
-  /// re-sent as part of the system prompt on every message, so it isn't
-  /// worth including full history or anything the model doesn't need.
-  Future<String> _buildUserContext() async {
-    final userId = _supabase.auth.currentUser?.id;
-    if (userId == null) return 'The user is not signed in.';
-
-    final buffer = StringBuffer();
-
-    try {
-      final goals = await _supabase
-          .from('goals')
-          .select()
-          .eq('user_id', userId)
-          .maybeSingle();
-
-      if (goals != null) {
-        buffer.writeln(
-          'Daily goals — calories: ${goals['daily_calories'] ?? 'not set'}, '
-              'protein: ${goals['protein_goal'] ?? 'not set'}g, '
-              'carbs: ${goals['carbs_goal'] ?? 'not set'}g, '
-              'fat: ${goals['fat_goal'] ?? 'not set'}g, '
-              'weight goal: ${goals['weight_goal'] ?? 'not set'}kg.',
-        );
-      } else {
-        buffer.writeln('The user has not set any goals yet.');
-      }
-    } catch (_) {
-      buffer.writeln('(Goals could not be loaded.)');
-    }
-
-    try {
-      final now = DateTime.now();
-      final startOfDay = DateTime(now.year, now.month, now.day);
-      final logs = await _supabase
-          .from('food_logs')
-          .select()
-          .eq('user_id', userId)
-          .gte('logged_at', startOfDay.toIso8601String());
-
-      final List<dynamic> logList = logs as List<dynamic>;
-      if (logList.isEmpty) {
-        buffer.writeln('Nothing logged yet today.');
-      } else {
-        double cals = 0, protein = 0, carbs = 0, fat = 0;
-        for (final log in logList) {
-          cals += ((log['calories'] ?? 0) as num).toDouble();
-          protein += ((log['protein'] ?? 0) as num).toDouble();
-          carbs += ((log['carbs'] ?? 0) as num).toDouble();
-          fat += ((log['fat'] ?? 0) as num).toDouble();
-        }
-        buffer.writeln(
-          'So far today: ${cals.round()} kcal, ${protein.round()}g protein, '
-              '${carbs.round()}g carbs, ${fat.round()}g fat, across '
-              '${logList.length} logged item(s).',
-        );
-      }
-    } catch (_) {
-      buffer.writeln("(Today's logs could not be loaded.)");
-    }
-
-    try {
-      final prefs = await _supabase
-          .from('diet_preferences')
-          .select()
-          .eq('user_id', userId)
-          .maybeSingle();
-
-      if (prefs != null) {
-        final cuisines =
-        List<String>.from(prefs['cuisine_preference'] ?? const []);
-        final allergies =
-        List<String>.from(prefs['allergies'] ?? const []);
-        final dietType = prefs['diet_type']?.toString() ?? 'no_restriction';
-        buffer.writeln(
-          'Diet preferences — type: $dietType, '
-              'cuisines: ${cuisines.isEmpty ? 'none set' : cuisines.join(', ')}, '
-              'allergies: ${allergies.isEmpty ? 'none' : allergies.join(', ')}.',
-        );
-      }
-    } catch (_) {
-      // Diet preferences are optional context — silently skip if the
-      // table isn't reachable rather than surfacing an error for a
-      // non-essential detail.
-    }
-
-    return buffer.toString();
-  }
-
-  static const String _systemPromptBase = '''
-You are the in-app assistant for Eatsy, a nutrition and calorie tracking app.
-Answer questions about how to use the app (logging food, scanning barcodes,
-setting goals, generating AI meal plans, tracking water) and, when relevant,
-use the user's data snapshot below to answer personal questions about their
-progress. Keep answers short and conversational — a few sentences, not an
-essay. If asked something with no connection to nutrition, health, or the
-app itself, gently steer back. You are not a doctor; for medical questions,
-suggest they consult a professional rather than giving medical advice.
-''';
+  // Same model already confirmed working for meal plan generation and
+  // meal swaps in meal_plan_screen.dart — reusing it rather than
+  // picking a different one keeps behavior/cost predictable across
+  // every AI feature in the app.
+  static const _model = 'llama-3.3-70b-versatile';
 
   Future<void> sendMessage(String text) async {
-    if (text.trim().isEmpty || state.isSending) return;
+    final trimmed = text.trim();
+    if (trimmed.isEmpty || state.isSending) return;
 
-    final userMessage = ChatMessage(role: 'user', content: text.trim());
-    state = state.copyWith(
+    final userMessage = ChatMessage(role: 'user', content: trimmed);
+    state = ChatState(
       messages: [...state.messages, userMessage],
       isSending: true,
-      error: null,
     );
 
     try {
-      final context = await _buildUserContext();
+      final session = _supabase.auth.currentSession;
+      if (session == null) throw Exception('Not signed in');
 
-      final apiMessages = [
-        {
-          'role': 'system',
-          'content': '$_systemPromptBase\n\nUser data snapshot:\n$context',
-        },
-        // Forward the visible conversation so the model has context of
-        // what's already been said. Skipped the initial static greeting
-        // since it's not something the model said itself.
-        ...state.messages
-            .where((m) => m != state.messages.first)
-            .map((m) => {'role': m.role, 'content': m.content}),
-        {'role': 'user', 'content': userMessage.content},
-      ];
+      final systemPrompt = await _buildSystemPrompt();
 
-      final response = await _dio.post(
-        _groqProxyUrl,
-        options: _groqAuthOptions(),
+      final dio = Dio();
+      final response = await dio.post(
+        _proxyUrl,
+        options: Options(
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer ${session.accessToken}',
+          },
+          validateStatus: (status) => true,
+        ),
         data: {
-          'model': 'llama-3.3-70b-versatile',
+          'model': _model,
           'max_tokens': 500,
-          'messages': apiMessages,
+          'messages': [
+            {'role': 'system', 'content': systemPrompt},
+            // Full conversation so far, not just the new message —
+            // Groq's chat completions endpoint is stateless per call,
+            // so the whole history has to be resent every time for the
+            // assistant to have any memory of earlier turns.
+            ...state.messages.map((m) => {'role': m.role, 'content': m.content}),
+          ],
         },
       );
 
       if (response.statusCode == 200) {
-        final reply =
+        final content =
         response.data['choices'][0]['message']['content'] as String;
-        state = state.copyWith(
+        state = ChatState(
           messages: [
             ...state.messages,
-            ChatMessage(role: 'assistant', content: reply.trim()),
+            ChatMessage(role: 'assistant', content: content.trim()),
           ],
           isSending: false,
         );
       } else {
-        state = state.copyWith(
-          isSending: false,
-          error: 'The assistant is unavailable right now. Please try again.',
-        );
+        throw Exception('Non-200 from proxy: ${response.statusCode}');
       }
     } catch (e) {
-      state = state.copyWith(
+      debugPrint('Chatbot error: $e');
+      // The failed user message stays in state.messages (so it's not
+      // silently lost from the transcript), but isSending clears and
+      // errorMessage lets the UI show a retry-friendly message rather
+      // than leaving the person staring at a stuck loading indicator.
+      state = ChatState(
+        messages: state.messages,
         isSending: false,
-        error: 'Something went wrong: $e',
+        errorMessage: "Couldn't get a response — please try again.",
       );
     }
   }
 
-  void clearError() {
-    state = state.copyWith(error: null);
+  /// Pulls the person's goals, diet preferences, and today's food log
+  /// into the system prompt so the assistant can actually answer
+  /// questions like "how many calories do I have left today" instead
+  /// of only explaining app features in the abstract. Falls back to
+  /// general-app-help-only (empty context block) if this fetch fails
+  /// for any reason — the chatbot should degrade gracefully, not go
+  /// completely unusable because one Supabase call had a hiccup.
+  Future<String> _buildSystemPrompt() async {
+    final userId = _supabase.auth.currentUser?.id;
+    String contextBlock = '';
+
+    if (userId != null) {
+      try {
+        final goals = await _supabase
+            .from('goals')
+            .select()
+            .eq('user_id', userId)
+            .maybeSingle();
+
+        final prefs = await _supabase
+            .from('user_preferences')
+            .select()
+            .eq('user_id', userId)
+            .maybeSingle();
+
+        final startOfDay = DayBoundary.startOfLocalDay();
+        final endOfDay = DayBoundary.endOfLocalDay();
+        final todayLogs = await _supabase
+            .from('food_logs')
+            .select('food_name, calories, meal_type')
+            .eq('user_id', userId)
+            .gte('logged_at', startOfDay.toIso8601String())
+            .lt('logged_at', endOfDay.toIso8601String());
+
+        final logRows = List<Map<String, dynamic>>.from(todayLogs);
+        final loggedFoods = logRows
+            .map((l) => '${l['food_name']} (${l['meal_type']}, '
+            '${l['calories']} kcal)')
+            .join(', ');
+        final caloriesSoFar = logRows.fold<double>(
+            0, (sum, l) => sum + ((l['calories'] ?? 0) as num).toDouble());
+
+        final allergies = (prefs?['allergies'] as List?)?.join(', ');
+
+        contextBlock = '''
+
+The person's current Eatsy data — use this to personalize answers, but
+never invent numbers that aren't given here:
+- Daily calorie goal: ${goals?['daily_calories'] ?? 'not set yet'} kcal
+- Macro goals: ${goals?['protein_goal'] ?? '?'}g protein, ${goals?['carbs_goal'] ?? '?'}g carbs, ${goals?['fat_goal'] ?? '?'}g fat
+- Weight goal: ${goals?['weight_goal'] ?? 'not set'}
+- Diet type: ${prefs?['diet_type'] ?? 'no restriction set'}
+- Allergies: ${(allergies == null || allergies.isEmpty) ? 'none listed' : allergies}
+- Logged today so far (${caloriesSoFar.toInt()} kcal total): ${loggedFoods.isEmpty ? 'nothing logged yet today' : loggedFoods}
+''';
+      } catch (e) {
+        debugPrint('Chatbot context fetch error: $e');
+      }
+    }
+
+    return '''
+You are Eatsy's in-app assistant. Eatsy is a nutrition and food-tracking
+app with these features: food logging (search, barcode scan), AI-generated
+meal plans with per-meal swapping, calorie/macro goal tracking, water
+tracking, weight tracking, diet preferences (cuisine, allergies, diet
+type), and optional Health Connect/HealthKit sync (steps, active
+calories, heart rate, sleep, weight).
+
+Answer questions about how to use the app, and about the person's own
+data below when it's relevant to what they're asking. Keep answers
+short and conversational — 2 to 4 sentences unless the question
+genuinely needs more. You are not a doctor or dietitian: if asked for
+medical advice, gently suggest they talk to a real professional instead
+of guessing.
+$contextBlock''';
   }
 }
+
+final chatbotControllerProvider =
+StateNotifierProvider<ChatbotController, ChatState>(
+        (ref) => ChatbotController());
