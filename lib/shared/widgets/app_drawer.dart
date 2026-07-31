@@ -100,7 +100,8 @@ class AppDrawer extends StatelessWidget {
                   ),
                   _DrawerItem(
                     icon: Icons.smart_toy_outlined,
-                    label: 'Chatbot',
+                    label: 'Sage',
+                    subtitle: 'Ask me anything',
                     onTap: () {
                       Navigator.pop(context);
                       context.push('/chatbot');
@@ -150,12 +151,14 @@ class _DrawerItem extends StatelessWidget {
   final String label;
   final VoidCallback onTap;
   final Color? color;
+  final String? subtitle;
 
   const _DrawerItem({
     required this.icon,
     required this.label,
     required this.onTap,
     this.color,
+    this.subtitle,
   });
 
   @override
@@ -170,6 +173,12 @@ class _DrawerItem extends StatelessWidget {
           fontWeight: FontWeight.w500,
           fontSize: 14,
         ),
+      ),
+      subtitle: subtitle == null
+          ? null
+          : Text(
+        subtitle!,
+        style: TextStyle(color: colors.textMuted, fontSize: 12),
       ),
       onTap: onTap,
     );

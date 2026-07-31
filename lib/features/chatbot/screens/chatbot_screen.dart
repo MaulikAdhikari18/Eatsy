@@ -84,7 +84,7 @@ class _ChatbotScreenState extends ConsumerState<ChatbotScreen> {
                   ),
                   const SizedBox(width: 10),
                   Text(
-                    'Eatsy Assistant',
+                    'Sage',
                     style: TextStyle(
                       fontSize: 17,
                       fontWeight: FontWeight.w700,
@@ -106,9 +106,9 @@ class _ChatbotScreenState extends ConsumerState<ChatbotScreen> {
                   // not something the assistant "said" in a way that
                   // should count toward context/token usage).
                   _AssistantBubble(
-                    text: "Hi! I'm the Eatsy assistant. Ask me anything "
-                        'about using the app, or about your own goals '
-                        "and today's log.",
+                    text: "Hi! I'm Sage, your Eatsy assistant. Ask me "
+                        'anything about using the app, or about your own '
+                        "goals and today's log.",
                     colors: colors,
                   ),
                   ...chatState.messages.map((m) => m.role == 'user'
